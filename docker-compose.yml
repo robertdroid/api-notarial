@@ -1,0 +1,59 @@
+services:
+  # PHP 8.5 with Apache
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: notarial-api
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/var/www/html
+      - ./docker/apache/vhost.conf:/etc/apache2/sites-available/000-default.conf
+    environment:
+      - APP_ENV=${APP_ENV:-development}
+      - APP_DEBUG=${APP_DEBUG:-true}
+    depends_on:
+      - db
+    networks:
+      - notarial-network
+
+  # MariaDB 11.4
+  db:
+    image: mariadb:11.4
+    container_name: notarial-db
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-r00tp4ssw0rd}
+      MYSQL_DATABASE: ${DB_DATABASE:-notarial_db}
+      MYSQL_USER: ${DB_USERNAME:-notarial_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-n0t4r14l_p4ss}
+    volumes:
+      - notarial-db-data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+    networks:
+      - notarial-network
+
+  # phpMyAdmin 5.2.3
+  phpmyadmin:
+    image: phpmyadmin:5.2.3
+    container_name: notarial-phpmyadmin
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: ${DB_ROOT_PASSWORD:-r00tp4ssw0rd}
+    depends_on:
+      - db
+    networks:
+      - notarial-network
+
+networks:
+  notarial-network:
+    driver: bridge
+
+volumes:
+  notarial-db-data:
