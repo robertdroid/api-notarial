@@ -2,50 +2,58 @@
 
 Sistema de índice notarial para el manejo y tracking de escrituras.
 
-## Requisitos
+## Requirements
 
 - PHP 8.2+
 - MariaDB 11.4
 - Docker & Docker Compose
 
-## Instalación
+## Installation
 
 ```bash
-# Clonar repositorio
+# Clone repository
 git clone https://github.com/robertdroid/api-notarial.git
 cd api-notarial
 
-# Copiar configuración
+# Copy configuration
 cp .env.example .env
-# Editar .env con tus credenciales
+# Edit .env with your credentials
 
-# Iniciar contenedores
+# Start containers
 docker-compose up -d
 
-# Instalar dependencias
+# Install dependencies
 docker-compose exec api composer install
 ```
 
-## Acceso
+## Access
 
 - **API:** http://localhost:8080
 - **phpMyAdmin:** http://localhost:8081
 - **Health Check:** http://localhost:8080/api/v3/health
 
+## API Documentation
+
+OpenAPI specification available at: `docs/openapi.yaml`
+
+To view with Swagger UI, you can use:
+- [Swagger Editor](https://editor.swagger.io/) - paste the YAML content
+- [Redocly](https://redocly.github.io/redoc/) - for beautiful documentation
+
 ## API Endpoints
 
-### Autenticación
+### Authentication
 
-| Método | Endpoint | Descripción |
+| Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/v3/auth/login` | Iniciar sesión |
-| POST | `/api/v3/auth/refresh` | Renovar tokens |
+| POST | `/api/v3/auth/login` | User login |
+| POST | `/api/v3/auth/refresh` | Refresh tokens |
 
 #### Login
 ```bash
 curl -X POST http://localhost:8080/api/v3/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"usuario":"user","contrasenia":"pass"}'
+  -d '{"username":"user","password":"pass"}'
 ```
 
 Response:
@@ -71,6 +79,13 @@ curl -X POST http://localhost:8080/api/v3/auth/refresh \
 curl http://localhost:8080/api/v3/health
 ```
 
+## API Conventions
+
+- All field names are in **English** and **camelCase**
+- Error messages are in **English**
+- Endpoints use **kebab-case** (`/deed-types`)
+- All responses are **JSON**
+
 ## Tests
 
 ```bash
@@ -79,12 +94,16 @@ docker-compose exec api ./vendor/bin/phpunit
 
 ## Changelog
 
-### 2026-11-09 - Feature: Auth Login
-- Implementación de autenticación JWT
-- Endpoints: `/api/v3/auth/login`, `/api/v3/auth/refresh`
-- Migración automática de contraseñas MD5 a bcrypt
-- Infraestructura base: Config, Database Connection, ServiceLocator
+### 2026-11-09 - Refactor: API English & OpenAPI
+- All API fields and messages now in English
+- Added OpenAPI 3.1 documentation
 
-## Licencia
+### 2026-11-09 - Feature: Auth Login
+- JWT authentication implementation
+- Endpoints: `/api/v3/auth/login`, `/api/v3/auth/refresh`
+- Automatic MD5 to bcrypt password migration
+- Base infrastructure: Config, Database Connection, ServiceLocator
+
+## License
 
 Proprietary - DevRob

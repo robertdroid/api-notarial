@@ -178,6 +178,11 @@ Response ← Controller ← Service ← Repository ← Database
 - JSON request/response
 - Standard HTTP status codes
 - Version prefix: `/api/v3/`
+- **All API output in English**: Field names, endpoint paths, and error messages must be in English
+- **Request fields**: camelCase (`username`, `password`, `notaryId`)
+- **Response fields**: camelCase (`accessToken`, `refreshToken`, `expiresIn`)
+- **Error messages**: English (`"Invalid credentials"`, `"Resource not found"`)
+- **OpenAPI documentation**: Update `docs/openapi.yaml` when adding/modifying endpoints
 
 ### HTTP Status Codes
 - `200` - Success

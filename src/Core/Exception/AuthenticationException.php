@@ -6,7 +6,7 @@ namespace App\Core\Exception;
 
 class AuthenticationException extends HttpException
 {
-    public function __construct(string $message = 'Credenciales inválidas')
+    public function __construct(string $message = 'Invalid credentials')
     {
         parent::__construct($message, 401);
     }
