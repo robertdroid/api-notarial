@@ -7,6 +7,7 @@ use App\Core\Middleware\AuthMiddleware;
 use App\Module\Auth\Controller\AuthController;
 use App\Module\Act\Controller\ActController;
 use App\Module\Subdivision\Controller\SubdivisionController;
+use App\Module\DeedType\Controller\DeedTypeController;
 
 /**
  * API Routes Configuration
@@ -43,6 +44,12 @@ $router->get('/api/v3/subdivisions', [SubdivisionController::class, 'index'])->w
 $router->get('/api/v3/subdivisions/{id}', [SubdivisionController::class, 'show'])->withMiddleware('auth');
 $router->post('/api/v3/subdivisions', [SubdivisionController::class, 'store'])->withMiddleware('auth');
 $router->put('/api/v3/subdivisions/{id}', [SubdivisionController::class, 'update'])->withMiddleware('auth');
+
+// Deed Types routes (protected)
+$router->get('/api/v3/deed-types', [DeedTypeController::class, 'index'])->withMiddleware('auth');
+$router->get('/api/v3/deed-types/{id}', [DeedTypeController::class, 'show'])->withMiddleware('auth');
+$router->post('/api/v3/deed-types', [DeedTypeController::class, 'store'])->withMiddleware('auth');
+$router->put('/api/v3/deed-types/{id}', [DeedTypeController::class, 'update'])->withMiddleware('auth');
 
 // Protected routes (with auth middleware)
 // $router->group(['middleware' => 'auth', 'prefix' => '/api/v3'], function (Router $router) {
