@@ -19,7 +19,7 @@ final class ActTest extends TestCase
             'descripcion_acto' => 'Acto de compraventa',
             'id_usuario' => '3',
             'fecha_modificacion' => '2026-11-09 12:00:00',
-            'id_status' => '1',
+            'id_estatus' => '1',
         ];
 
         $act = Act::fromRow($row);
@@ -42,7 +42,7 @@ final class ActTest extends TestCase
             'descripcion_acto' => null,
             'id_usuario' => '3',
             'fecha_modificacion' => '2026-11-09 12:00:00',
-            'id_status' => '1',
+            'id_estatus' => '1',
         ];
 
         $act = Act::fromRow($row);

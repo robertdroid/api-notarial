@@ -19,7 +19,7 @@ class ActRepository
         $params = ['notaryId' => $notaryId];
 
         if ($status !== null) {
-            $sql .= " AND id_status = :status";
+            $sql .= " AND id_estatus = :status";
             $params['status'] = $status;
         }
 
@@ -71,7 +71,7 @@ class ActRepository
 
     public function create(Act $act): int
     {
-        $sql = "INSERT INTO actos_notaria (id_notaria, nombre_acto, descripcion_acto, id_usuario, fecha_modificacion, id_status)
+        $sql = "INSERT INTO actos_notaria (id_notaria, nombre_acto, descripcion_acto, id_usuario, fecha_modificacion, id_estatus)
                 VALUES (:notaryId, :name, :description, :userId, :modDate, :status)";
 
         $stmt = $this->db->prepare($sql);
@@ -94,7 +94,7 @@ class ActRepository
                     descripcion_acto = :description,
                     id_usuario = :userId,
                     fecha_modificacion = :modDate,
-                    id_status = :status
+                    id_estatus = :status
                 WHERE id_acto = :id AND id_notaria = :notaryId";
 
         $stmt = $this->db->prepare($sql);

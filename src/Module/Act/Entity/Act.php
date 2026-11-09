@@ -27,7 +27,7 @@ final class Act
             description: $row['descripcion_acto'] ?? '',
             userId: (int) $row['id_usuario'],
             modificationDate: new DateTime($row['fecha_modificacion']),
-            statusId: (int) $row['id_status'],
+            statusId: (int) $row['id_estatus'],
         );
     }
 
