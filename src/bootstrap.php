@@ -11,6 +11,8 @@ use App\Module\Auth\Service\AuthService;
 use App\Module\Auth\Repository\UserAuthRepository;
 use App\Module\Act\Repository\ActRepository;
 use App\Module\Act\Service\ActService;
+use App\Module\Subdivision\Repository\SubdivisionRepository;
+use App\Module\Subdivision\Service\SubdivisionService;
 
 $dotenv = Dotenv::createImmutable(BASE_PATH);
 $dotenv->load();
@@ -39,5 +41,15 @@ ServiceLocator::register(ActRepository::class, function () {
 ServiceLocator::register(ActService::class, function () {
     return new ActService(
         ServiceLocator::get(ActRepository::class)
+    );
+});
+
+ServiceLocator::register(SubdivisionRepository::class, function () {
+    return new SubdivisionRepository(Connection::getInstance());
+});
+
+ServiceLocator::register(SubdivisionService::class, function () {
+    return new SubdivisionService(
+        ServiceLocator::get(SubdivisionRepository::class)
     );
 });
