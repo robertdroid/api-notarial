@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Core\Http\Router;
 use App\Core\Middleware\AuthMiddleware;
 use App\Module\Auth\Controller\AuthController;
+use App\Module\Act\Controller\ActController;
 
 /**
  * API Routes Configuration
@@ -29,6 +30,12 @@ $router->get('/api/v3/health', function () {
 // Auth routes (public - no middleware)
 $router->post('/api/v3/auth/login', [AuthController::class, 'login']);
 $router->post('/api/v3/auth/refresh', [AuthController::class, 'refresh']);
+
+// Acts routes (protected)
+$router->get('/api/v3/acts', [ActController::class, 'index'])->withMiddleware('auth');
+$router->get('/api/v3/acts/{id}', [ActController::class, 'show'])->withMiddleware('auth');
+$router->post('/api/v3/acts', [ActController::class, 'store'])->withMiddleware('auth');
+$router->put('/api/v3/acts/{id}', [ActController::class, 'update'])->withMiddleware('auth');
 
 // Protected routes (with auth middleware)
 // $router->group(['middleware' => 'auth', 'prefix' => '/api/v3'], function (Router $router) {
