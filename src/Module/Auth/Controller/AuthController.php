@@ -21,18 +21,18 @@ class AuthController
 
     public function login(Request $request): Response
     {
-        $username = $request->getBodyParam('usuario');
-        $password = $request->getBodyParam('contrasenia');
+        $username = $request->getBodyParam('username');
+        $password = $request->getBodyParam('password');
 
         if (empty($username) || empty($password)) {
-            return Response::badRequest('Usuario y contraseña son requeridos');
+            return Response::badRequest('Username and password are required');
         }
 
         try {
             $tokens = $this->authService->authenticate($username, $password);
             return Response::json($tokens->toArray());
         } catch (AuthenticationException $e) {
-            return Response::unauthorized('Credenciales inválidas');
+            return Response::unauthorized('Invalid credentials');
         }
     }
 
@@ -41,14 +41,14 @@ class AuthController
         $refreshToken = $request->getBodyParam('refreshToken');
 
         if (empty($refreshToken)) {
-            return Response::badRequest('Refresh token es requerido');
+            return Response::badRequest('Refresh token is required');
         }
 
         try {
             $tokens = $this->authService->refreshTokens($refreshToken);
             return Response::json($tokens->toArray());
         } catch (AuthenticationException $e) {
-            return Response::unauthorized($e->getMessage() ?: 'Token inválido o expirado');
+            return Response::unauthorized('Invalid or expired token');
         }
     }
 }

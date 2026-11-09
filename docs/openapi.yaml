@@ -1,0 +1,295 @@
+openapi: 3.1.0
+info:
+  title: Notarial API
+  description: |
+    REST API for the Notarial Index System - deed tracking and management for notary offices.
+
+    ## Authentication
+    This API uses JWT Bearer tokens for authentication. Obtain tokens via the `/auth/login` endpoint.
+    Include the access token in the `Authorization` header: `Bearer <accessToken>`
+
+    ## Multi-tenancy
+    All data is scoped to the authenticated user's notary (tenant). The `notaryId` is embedded in the JWT token.
+  version: 3.0.0
+  contact:
+    name: DevRob
+    email: jroberto.trejo14@gmail.com
+
+servers:
+  - url: http://localhost:8080/api/v3
+    description: Local development
+  - url: https://api.notarial.com/api/v3
+    description: Production
+
+tags:
+  - name: Auth
+    description: Authentication endpoints
+  - name: Health
+    description: Health check endpoints
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Returns the API status and version
+      operationId: healthCheck
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: User login
+      description: |
+        Authenticates a user and returns JWT tokens.
+
+        - Validates user credentials against the database
+        - Checks that both user and notary are active
+        - Automatically migrates MD5 passwords to bcrypt on successful login
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              username: "johndoe"
+              password: "secretpassword"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Username and password are required"
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid credentials"
+
+  /auth/refresh:
+    post:
+      tags:
+        - Auth
+      summary: Refresh tokens
+      description: |
+        Exchanges a valid refresh token for new access and refresh tokens.
+
+        - The refresh token must be valid and not expired
+        - Access tokens cannot be used as refresh tokens
+        - Returns updated user features in the new access token
+      operationId: refreshTokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Tokens refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Refresh token is required"
+        '401':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid or expired token"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token obtained from /auth/login
+
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - timestamp
+        - version
+      properties:
+        status:
+          type: string
+          example: "ok"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-11-09T12:00:00-06:00"
+        version:
+          type: string
+          example: "3.0.0"
+
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: User's login username
+          example: "johndoe"
+        password:
+          type: string
+          minLength: 1
+          format: password
+          description: User's password
+          example: "secretpassword"
+
+    RefreshRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          description: Valid refresh token from a previous login or refresh
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+    TokenResponse:
+      type: object
+      required:
+        - accessToken
+        - refreshToken
+        - expiresIn
+        - tokenType
+      properties:
+        accessToken:
+          type: string
+          description: JWT access token for API authentication
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        refreshToken:
+          type: string
+          description: JWT refresh token for obtaining new tokens
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        expiresIn:
+          type: integer
+          description: Access token expiration time in seconds
+          example: 7200
+        tokenType:
+          type: string
+          enum: [Bearer]
+          description: Token type (always "Bearer")
+          example: "Bearer"
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: "Invalid credentials"
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          description: Field-specific validation errors (optional)
+          example:
+            username: ["Username is required"]
+
+    # JWT Token Payload Schemas (for documentation)
+    AccessTokenPayload:
+      type: object
+      description: Decoded access token payload
+      properties:
+        iss:
+          type: string
+          description: Token issuer
+          example: "security@devrob"
+        aud:
+          type: string
+          description: Token audience
+          example: "apps@devrob"
+        iat:
+          type: integer
+          description: Issued at (Unix timestamp)
+          example: 1699531200
+        exp:
+          type: integer
+          description: Expiration time (Unix timestamp)
+          example: 1699538400
+        userId:
+          type: integer
+          description: Authenticated user ID
+          example: 1
+        notaryId:
+          type: integer
+          description: User's notary ID (tenant)
+          example: 1
+        features:
+          type: array
+          items:
+            type: string
+          description: User's feature permissions
+          example: ["DEEDS", "ACTS", "USERS"]
+
+    RefreshTokenPayload:
+      type: object
+      description: Decoded refresh token payload
+      properties:
+        iss:
+          type: string
+          example: "security@devrob"
+        aud:
+          type: string
+          example: "apps@devrob"
+        iat:
+          type: integer
+          example: 1699531200
+        exp:
+          type: integer
+          example: 1699617600
+        userId:
+          type: integer
+          example: 1
+        notaryId:
+          type: integer
+          example: 1
+        type:
+          type: string
+          enum: [refresh]
+          description: Token type identifier
+          example: "refresh"

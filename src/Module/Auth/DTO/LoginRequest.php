@@ -9,22 +9,22 @@ use InvalidArgumentException;
 class LoginRequest
 {
     public function __construct(
-        public readonly string $usuario,
-        public readonly string $contrasenia,
+        public readonly string $username,
+        public readonly string $password,
     ) {
-        if (empty($this->usuario)) {
-            throw new InvalidArgumentException('Usuario es requerido');
+        if (empty($this->username)) {
+            throw new InvalidArgumentException('Username is required');
         }
-        if (empty($this->contrasenia)) {
-            throw new InvalidArgumentException('Contraseña es requerida');
+        if (empty($this->password)) {
+            throw new InvalidArgumentException('Password is required');
         }
     }
 
     public static function fromArray(array $data): self
     {
         return new self(
-            usuario: $data['usuario'] ?? '',
-            contrasenia: $data['contrasenia'] ?? '',
+            username: $data['username'] ?? '',
+            password: $data['password'] ?? '',
         );
     }
 }
