@@ -12,6 +12,7 @@ class Request
     private array $body;
     private array $headers;
     private array $routeParams = [];
+    private ?array $authUser = null;
 
     public function __construct(
         string $method,
@@ -120,5 +121,30 @@ class Request
     public function getRouteParam(string $key, mixed $default = null): mixed
     {
         return $this->routeParams[$key] ?? $default;
+    }
+
+    public function setAuthUser(array $user): void
+    {
+        $this->authUser = $user;
+    }
+
+    public function getAuthUser(): ?array
+    {
+        return $this->authUser;
+    }
+
+    public function getUserId(): ?int
+    {
+        return $this->authUser['userId'] ?? null;
+    }
+
+    public function getNotaryId(): ?int
+    {
+        return $this->authUser['notaryId'] ?? null;
+    }
+
+    public function getFeatures(): array
+    {
+        return $this->authUser['features'] ?? [];
     }
 }
