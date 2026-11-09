@@ -13,6 +13,8 @@ use App\Module\Act\Repository\ActRepository;
 use App\Module\Act\Service\ActService;
 use App\Module\Subdivision\Repository\SubdivisionRepository;
 use App\Module\Subdivision\Service\SubdivisionService;
+use App\Module\DeedType\Repository\DeedTypeRepository;
+use App\Module\DeedType\Service\DeedTypeService;
 
 $dotenv = Dotenv::createImmutable(BASE_PATH);
 $dotenv->load();
@@ -51,5 +53,15 @@ ServiceLocator::register(SubdivisionRepository::class, function () {
 ServiceLocator::register(SubdivisionService::class, function () {
     return new SubdivisionService(
         ServiceLocator::get(SubdivisionRepository::class)
+    );
+});
+
+ServiceLocator::register(DeedTypeRepository::class, function () {
+    return new DeedTypeRepository(Connection::getInstance());
+});
+
+ServiceLocator::register(DeedTypeService::class, function () {
+    return new DeedTypeService(
+        ServiceLocator::get(DeedTypeRepository::class)
     );
 });
