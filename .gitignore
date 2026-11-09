@@ -89,6 +89,7 @@ docker-compose.override.yml
 # ===================
 *.sql
 !docker/mysql/init/*.sql
+!.db/**/*.sql
 /backups/
 /dumps/
 

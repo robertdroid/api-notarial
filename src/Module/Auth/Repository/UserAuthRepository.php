@@ -17,16 +17,16 @@ class UserAuthRepository
     {
         $sql = "
             SELECT
-                u.id,
+                u.id_usuario as id,
                 u.usuario as username,
                 u.password_hash,
                 u.contrasenia as password_md5,
-                u.notaria_id as notary_id,
-                u.status as user_status,
+                u.id_notaria as notary_id,
+                u.id_estatus as user_status,
                 u.user_access,
-                n.status as notary_status
-            FROM usuarios u
-            INNER JOIN notaria n ON n.id = u.notaria_id
+                n.id_estatus as notary_status
+            FROM usuarios_notaria u
+            INNER JOIN notarias n ON n.id_notaria = u.id_notaria
             WHERE u.usuario = :username
             LIMIT 1
         ";
@@ -56,19 +56,19 @@ class UserAuthRepository
     {
         $sql = "
             SELECT
-                u.id,
+                u.id_usuario as id,
                 u.usuario as username,
                 u.password_hash,
                 u.contrasenia as password_md5,
-                u.notaria_id as notary_id,
-                u.status as user_status,
+                u.id_notaria as notary_id,
+                u.id_estatus as user_status,
                 u.user_access,
-                n.status as notary_status
-            FROM usuarios u
-            INNER JOIN notaria n ON n.id = u.notaria_id
-            WHERE u.id = :userId
-              AND u.status = 1
-              AND n.status = 1
+                n.id_estatus as notary_status
+            FROM usuarios_notaria u
+            INNER JOIN notarias n ON n.id_notaria = u.id_notaria
+            WHERE u.id_usuario = :userId
+              AND u.id_estatus = 1
+              AND n.id_estatus = 1
             LIMIT 1
         ";
 
@@ -95,7 +95,7 @@ class UserAuthRepository
 
     public function updatePasswordHash(int $userId, string $hash): void
     {
-        $sql = "UPDATE usuarios SET password_hash = :hash WHERE id = :userId";
+        $sql = "UPDATE usuarios_notaria SET password_hash = :hash WHERE id_usuario = :userId";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
             'hash' => $hash,
