@@ -9,6 +9,8 @@ use App\Core\Container\ServiceLocator;
 use App\Module\Auth\Service\JwtService;
 use App\Module\Auth\Service\AuthService;
 use App\Module\Auth\Repository\UserAuthRepository;
+use App\Module\Act\Repository\ActRepository;
+use App\Module\Act\Service\ActService;
 
 $dotenv = Dotenv::createImmutable(BASE_PATH);
 $dotenv->load();
@@ -27,5 +29,15 @@ ServiceLocator::register(AuthService::class, function () {
     return new AuthService(
         ServiceLocator::get(UserAuthRepository::class),
         ServiceLocator::get(JwtService::class)
+    );
+});
+
+ServiceLocator::register(ActRepository::class, function () {
+    return new ActRepository(Connection::getInstance());
+});
+
+ServiceLocator::register(ActService::class, function () {
+    return new ActService(
+        ServiceLocator::get(ActRepository::class)
     );
 });

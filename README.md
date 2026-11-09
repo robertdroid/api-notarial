@@ -79,6 +79,45 @@ curl -X POST http://localhost:8080/api/v3/auth/refresh \
 curl http://localhost:8080/api/v3/health
 ```
 
+### Acts (Legal Acts)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v3/acts` | List all acts (filterable) |
+| GET | `/api/v3/acts/{id}` | Get act by ID |
+| POST | `/api/v3/acts` | Create new act |
+| PUT | `/api/v3/acts/{id}` | Update act |
+
+#### List Acts
+```bash
+curl -X GET "http://localhost:8080/api/v3/acts?status=1&name=compra" \
+  -H "Authorization: Bearer <token>"
+```
+
+Query parameters:
+- `status` (optional): 1 = active, 2 = inactive
+- `name` (optional): partial match, case-insensitive
+
+#### Create Act
+```bash
+curl -X POST http://localhost:8080/api/v3/acts \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"actName":"Compraventa","actDescription":"Acto de compraventa"}'
+```
+
+Response: `201 Created` (no body)
+
+#### Update Act
+```bash
+curl -X PUT http://localhost:8080/api/v3/acts/1 \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"actName":"Compraventa","actDescription":"Descripción","status":1}'
+```
+
+Response: `204 No Content`
+
 ## API Conventions
 
 - All field names are in **English** and **camelCase**
@@ -93,6 +132,13 @@ docker-compose exec api ./vendor/bin/phpunit
 ```
 
 ## Changelog
+
+### 2026-11-09 - Feature: Acts CRUD
+- CRUD module for legal acts (actos jurídicos)
+- Endpoints: list, get, create, update
+- Multi-tenant filtering by notary
+- Name uniqueness validation per notary
+- Soft delete via status change
 
 ### 2026-11-09 - Refactor: API English & OpenAPI
 - All API fields and messages now in English

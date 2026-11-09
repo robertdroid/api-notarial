@@ -26,6 +26,8 @@ tags:
     description: Authentication endpoints
   - name: Health
     description: Health check endpoints
+  - name: Acts
+    description: Legal acts management (catalog per notary)
 
 paths:
   /health:
@@ -129,6 +131,202 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
               example:
                 error: "Invalid or expired token"
+
+  /acts:
+    get:
+      tags:
+        - Acts
+      summary: List all acts
+      description: |
+        Returns all legal acts for the authenticated user's notary.
+
+        Supports optional filtering by status and name (partial match, case-insensitive).
+      operationId: listActs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter by status (1 = active, 2 = inactive)
+          required: false
+          schema:
+            type: integer
+            enum: [1, 2]
+        - name: name
+          in: query
+          description: Filter by name (partial match, case-insensitive)
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of acts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ActResponse'
+        '400':
+          description: Invalid status value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid status value"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Unauthorized"
+
+    post:
+      tags:
+        - Acts
+      summary: Create a new act
+      description: |
+        Creates a new legal act for the authenticated user's notary.
+
+        - Act name must be unique within the notary (case-insensitive)
+        - Names are trimmed before validation and storage
+      operationId: createAct
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateActRequest'
+      responses:
+        '201':
+          description: Act created successfully (no body)
+        '400':
+          description: Validation error or duplicate name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validation:
+                  summary: Validation error
+                  value:
+                    error: "Validation failed"
+                    errors:
+                      actName: "Act name is required"
+                duplicate:
+                  summary: Duplicate name
+                  value:
+                    error: "Act name already exists"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /acts/{id}:
+    get:
+      tags:
+        - Acts
+      summary: Get act by ID
+      description: |
+        Returns a single act by its ID.
+
+        Returns 404 if the act doesn't exist or belongs to a different notary.
+      operationId: getAct
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Act ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Act details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActResponse'
+        '400':
+          description: Invalid ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid ID format"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Act not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Act not found"
+
+    put:
+      tags:
+        - Acts
+      summary: Update an act
+      description: |
+        Updates an existing act.
+
+        - Can be used to modify name, description, or status
+        - Setting status to 2 effectively deactivates the act (soft delete)
+        - Name uniqueness is validated excluding the current record
+      operationId: updateAct
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Act ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateActRequest'
+      responses:
+        '204':
+          description: Act updated successfully (no body)
+        '400':
+          description: Validation error or duplicate name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Act not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Act not found"
 
 components:
   securitySchemes:
@@ -293,3 +491,86 @@ components:
           enum: [refresh]
           description: Token type identifier
           example: "refresh"
+
+    # Acts schemas
+    ActResponse:
+      type: object
+      required:
+        - id
+        - actName
+        - actDescription
+        - status
+        - modificationDate
+      properties:
+        id:
+          type: integer
+          description: Act unique identifier
+          example: 1
+        actName:
+          type: string
+          description: Act name
+          example: "Compraventa"
+        actDescription:
+          type: string
+          description: Act description
+          example: "Acto jurídico de compraventa de bienes inmuebles"
+        status:
+          type: integer
+          enum: [1, 2]
+          description: Act status (1 = active, 2 = inactive)
+          example: 1
+        modificationDate:
+          type: string
+          format: date-time
+          description: Last modification date
+          example: "2026-11-09 12:00:00"
+
+    CreateActRequest:
+      type: object
+      required:
+        - actName
+        - actDescription
+      properties:
+        actName:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Act name (must be unique within the notary)
+          example: "Compraventa"
+        actDescription:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Act description
+          example: "Acto jurídico de compraventa de bienes inmuebles"
+        status:
+          type: integer
+          enum: [1, 2]
+          default: 1
+          description: Act status (defaults to 1 = active)
+          example: 1
+
+    UpdateActRequest:
+      type: object
+      required:
+        - actName
+        - actDescription
+        - status
+      properties:
+        actName:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Act name (must be unique within the notary)
+          example: "Compraventa"
+        actDescription:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Act description
+          example: "Acto jurídico de compraventa de bienes inmuebles"
+        status:
+          type: integer
+          enum: [1, 2]
+          description: Act status (1 = active, 2 = inactive)
+          example: 1
