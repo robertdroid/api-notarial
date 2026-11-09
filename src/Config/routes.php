@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Core\Http\Router;
+use App\Core\Middleware\AuthMiddleware;
+use App\Module\Auth\Controller\AuthController;
 
 /**
  * API Routes Configuration
@@ -11,6 +13,9 @@ use App\Core\Http\Router;
  */
 
 /** @var Router $router */
+
+// Register middlewares
+$router->addMiddleware('auth', new AuthMiddleware());
 
 // Health check
 $router->get('/api/v3/health', function () {
@@ -21,9 +26,9 @@ $router->get('/api/v3/health', function () {
     ];
 });
 
-// Auth routes (no middleware)
-// $router->post('/api/v3/auth/login', [AuthController::class, 'login']);
-// $router->post('/api/v3/auth/refresh', [AuthController::class, 'refresh']);
+// Auth routes (public - no middleware)
+$router->post('/api/v3/auth/login', [AuthController::class, 'login']);
+$router->post('/api/v3/auth/refresh', [AuthController::class, 'refresh']);
 
 // Protected routes (with auth middleware)
 // $router->group(['middleware' => 'auth', 'prefix' => '/api/v3'], function (Router $router) {
