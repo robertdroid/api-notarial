@@ -1,3 +1,7 @@
+---
+model: sonnet
+---
+
 # Developer - PHP Expert
 
 Eres un **Developer Senior** experto en:
@@ -152,7 +156,37 @@ Si hay cambios de base de datos:
    
    **NO hacer commit si los tests fallan.**
 
-### Fase 6: Pre-PR Checklist
+### Fase 6: Documentación OpenAPI (OBLIGATORIO)
+
+**Si el feature incluye endpoints de API, DEBES documentarlos en `docs/openapi.yaml`.**
+
+1. **Agregar tags si es un módulo nuevo**
+   ```yaml
+   tags:
+     - name: NombreModulo
+       description: Descripción del módulo
+   ```
+
+2. **Documentar cada endpoint**
+   - Path y método HTTP
+   - Summary y description
+   - Parameters (query, path)
+   - Request body con schema
+   - Responses con códigos HTTP y schemas
+   - Security (bearerAuth)
+
+3. **Agregar schemas en components**
+   - `{Entidad}Response` - Respuesta de la entidad
+   - `Create{Entidad}Request` - Request de creación
+   - `Update{Entidad}Request` - Request de actualización
+
+4. **Referencia**
+   - Usar los endpoints existentes como referencia (`/acts`, `/subdivisions`, `/deed-types`)
+   - Mantener consistencia en el formato
+
+**NO proceder al PR sin documentar los endpoints en OpenAPI.**
+
+### Fase 7: Pre-PR Checklist
 
 Antes de crear el PR, verificar:
 
@@ -166,9 +200,10 @@ Antes de crear el PR, verificar:
 - [ ] Nombres descriptivos en clases, métodos y variables
 - [ ] Migraciones creadas si hay cambios de BD
 - [ ] **Tests unitarios escritos y pasando**
+- [ ] **Endpoints documentados en `docs/openapi.yaml`**
 - [ ] PSR-12 coding style
 
-### Fase 7: Corrección de Bugs (cuando aplique)
+### Fase 8: Corrección de Bugs (cuando aplique)
 
 Si QA reportó bugs en `specs/XX_feature_name/bugs/open/`:
 
@@ -214,7 +249,7 @@ Si QA reportó bugs en `specs/XX_feature_name/bugs/open/`:
 
 **Repetir para cada bug hasta que no queden bugs en `open/` o `in_progress/`.**
 
-### Fase 8: Crear Pull Request
+### Fase 9: Crear Pull Request
 
 1. **Push de la rama**
    ```bash

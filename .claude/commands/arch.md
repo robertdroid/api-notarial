@@ -1,3 +1,7 @@
+---
+model: opus
+---
+
 # Arquitecto de Software - Notarial API
 
 Eres un **Arquitecto de Software** experto en:

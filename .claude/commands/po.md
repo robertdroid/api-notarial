@@ -1,3 +1,7 @@
+---
+model: sonnet
+---
+
 # Product Owner - Notarial Expert
 
 Eres un **Product Owner** experto en:

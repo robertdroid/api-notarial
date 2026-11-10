@@ -28,6 +28,12 @@ tags:
     description: Health check endpoints
   - name: Acts
     description: Legal acts management (catalog per notary)
+  - name: Subdivisions
+    description: Subdivisions/locations management (catalog per notary)
+  - name: DeedTypes
+    description: Deed types management (catalog per notary)
+  - name: Notary
+    description: Notary profile management (current user's notary)
 
 paths:
   /health:
@@ -328,6 +334,546 @@ paths:
               example:
                 error: "Act not found"
 
+  /subdivisions:
+    get:
+      tags:
+        - Subdivisions
+      summary: List all subdivisions
+      description: |
+        Returns all subdivisions for the authenticated user's notary.
+
+        Supports optional filtering by status and name (partial match, case-insensitive).
+      operationId: listSubdivisions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter by status (1 = active, 2 = inactive)
+          required: false
+          schema:
+            type: integer
+            enum: [1, 2]
+        - name: name
+          in: query
+          description: Filter by name (partial match, case-insensitive)
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of subdivisions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SubdivisionResponse'
+        '400':
+          description: Invalid status value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid status value"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Subdivisions
+      summary: Create a new subdivision
+      description: |
+        Creates a new subdivision for the authenticated user's notary.
+
+        - Subdivision name must be unique within the notary (case-insensitive)
+        - Names are trimmed before validation and storage
+      operationId: createSubdivision
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubdivisionRequest'
+      responses:
+        '201':
+          description: Subdivision created successfully (no body)
+        '400':
+          description: Validation error or duplicate name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validation:
+                  summary: Validation error
+                  value:
+                    error: "Validation failed"
+                    errors:
+                      name: "Subdivision name is required"
+                duplicate:
+                  summary: Duplicate name
+                  value:
+                    error: "Subdivision name already exists"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /subdivisions/{id}:
+    get:
+      tags:
+        - Subdivisions
+      summary: Get subdivision by ID
+      description: |
+        Returns a single subdivision by its ID.
+
+        Returns 404 if the subdivision doesn't exist or belongs to a different notary.
+      operationId: getSubdivision
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Subdivision ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Subdivision details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubdivisionResponse'
+        '400':
+          description: Invalid ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid ID format"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Subdivision not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Subdivision not found"
+
+    put:
+      tags:
+        - Subdivisions
+      summary: Update a subdivision
+      description: |
+        Updates an existing subdivision.
+
+        - Can be used to modify name or status
+        - Setting status to 2 effectively deactivates the subdivision (soft delete)
+        - Name uniqueness is validated excluding the current record
+      operationId: updateSubdivision
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Subdivision ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSubdivisionRequest'
+      responses:
+        '204':
+          description: Subdivision updated successfully (no body)
+        '400':
+          description: Validation error or duplicate name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Subdivision not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Subdivision not found"
+
+  /deed-types:
+    get:
+      tags:
+        - DeedTypes
+      summary: List all deed types
+      description: |
+        Returns all deed types for the authenticated user's notary.
+
+        Supports optional filtering by status and name (partial match, case-insensitive).
+      operationId: listDeedTypes
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter by status (1 = active, 2 = inactive)
+          required: false
+          schema:
+            type: integer
+            enum: [1, 2]
+        - name: name
+          in: query
+          description: Filter by name (partial match, case-insensitive)
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of deed types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeedTypeResponse'
+        '400':
+          description: Invalid status value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid status value"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - DeedTypes
+      summary: Create a new deed type
+      description: |
+        Creates a new deed type for the authenticated user's notary.
+
+        - Deed type name must be unique within the notary (case-insensitive)
+        - Names are trimmed before validation and storage
+      operationId: createDeedType
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDeedTypeRequest'
+      responses:
+        '201':
+          description: Deed type created successfully (no body)
+        '400':
+          description: Validation error or duplicate name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validation:
+                  summary: Validation error
+                  value:
+                    error: "Validation failed"
+                    errors:
+                      name: "Deed type name is required"
+                duplicate:
+                  summary: Duplicate name
+                  value:
+                    error: "Deed type name already exists"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /deed-types/{id}:
+    get:
+      tags:
+        - DeedTypes
+      summary: Get deed type by ID
+      description: |
+        Returns a single deed type by its ID.
+
+        Returns 404 if the deed type doesn't exist or belongs to a different notary.
+      operationId: getDeedType
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Deed type ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Deed type details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeedTypeResponse'
+        '400':
+          description: Invalid ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid ID format"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Deed type not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Deed type not found"
+
+    put:
+      tags:
+        - DeedTypes
+      summary: Update a deed type
+      description: |
+        Updates an existing deed type.
+
+        - Can be used to modify name, description, maxInscriptions, enableSubdivisions, or status
+        - Setting status to 2 effectively deactivates the deed type (soft delete)
+        - Name uniqueness is validated excluding the current record
+      operationId: updateDeedType
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Deed type ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDeedTypeRequest'
+      responses:
+        '204':
+          description: Deed type updated successfully (no body)
+        '400':
+          description: Validation error or duplicate name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Deed type not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Deed type not found"
+
+  /notary:
+    get:
+      tags:
+        - Notary
+      summary: Get current notary profile
+      description: |
+        Returns the profile information of the authenticated user's notary.
+
+        - The notary ID is obtained from the JWT token
+        - Returns 404 if the notary is inactive
+      operationId: getNotary
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Notary profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotaryResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Notary not found or inactive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Notary not found"
+
+    post:
+      tags:
+        - Notary
+      summary: Update current notary profile
+      description: |
+        Updates the profile information of the authenticated user's notary.
+
+        - Uses POST instead of PUT to support multipart/form-data for logo upload
+        - The notary ID is obtained from the JWT token
+        - Only provided fields are updated (except name and notaryName which are required)
+        - Logo must be JPG or PNG, max 512 KB
+        - Logo is validated for real image content (not just extension)
+      operationId: updateNotary
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UpdateNotaryRequest'
+      responses:
+        '204':
+          description: Notary updated successfully (no body)
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validation:
+                  summary: Field validation error
+                  value:
+                    error: "Validation failed"
+                    errors:
+                      name: "Notary name is required"
+                logo_size:
+                  summary: Logo too large
+                  value:
+                    error: "Logo file exceeds maximum size of 512 KB"
+                logo_format:
+                  summary: Invalid logo format
+                  value:
+                    error: "Logo must be JPG or PNG format"
+                logo_invalid:
+                  summary: Invalid image file
+                  value:
+                    error: "Invalid image file"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Notary not found or inactive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Notary not found"
+
+  /notary/logo:
+    get:
+      tags:
+        - Notary
+      summary: Get notary logo
+      description: |
+        Returns the logo image of the authenticated user's notary.
+
+        - Returns the binary image with appropriate Content-Type
+        - Includes cache headers (1 hour)
+        - Returns 404 if no logo is configured or notary is inactive
+      operationId: getNotaryLogo
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logo image
+          headers:
+            Content-Type:
+              schema:
+                type: string
+                enum: [image/jpeg, image/png]
+            Content-Length:
+              schema:
+                type: integer
+            Cache-Control:
+              schema:
+                type: string
+                example: "public, max-age=3600"
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Logo not found or notary inactive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Logo not found"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -574,3 +1120,298 @@ components:
           enum: [1, 2]
           description: Act status (1 = active, 2 = inactive)
           example: 1
+
+    # Subdivisions schemas
+    SubdivisionResponse:
+      type: object
+      required:
+        - subdivisionId
+        - notaryId
+        - name
+        - userId
+        - modificationDate
+        - status
+      properties:
+        subdivisionId:
+          type: integer
+          description: Subdivision unique identifier
+          example: 1
+        notaryId:
+          type: integer
+          description: Notary ID (tenant)
+          example: 1
+        name:
+          type: string
+          description: Subdivision name
+          example: "Residencial Las Palmas"
+        userId:
+          type: integer
+          description: User who last modified the record
+          example: 1
+        modificationDate:
+          type: string
+          format: date-time
+          description: Last modification date
+          example: "2026-11-09T12:00:00"
+        status:
+          type: integer
+          enum: [1, 2]
+          description: Subdivision status (1 = active, 2 = inactive)
+          example: 1
+
+    CreateSubdivisionRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Subdivision name (must be unique within the notary)
+          example: "Residencial Las Palmas"
+        status:
+          type: integer
+          enum: [1, 2]
+          default: 1
+          description: Subdivision status (defaults to 1 = active)
+          example: 1
+
+    UpdateSubdivisionRequest:
+      type: object
+      required:
+        - name
+        - status
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Subdivision name (must be unique within the notary)
+          example: "Residencial Las Palmas"
+        status:
+          type: integer
+          enum: [1, 2]
+          description: Subdivision status (1 = active, 2 = inactive)
+          example: 1
+
+    # Deed Types schemas
+    DeedTypeResponse:
+      type: object
+      required:
+        - deedTypeId
+        - notaryId
+        - name
+        - description
+        - maxInscriptions
+        - enableSubdivisions
+        - userId
+        - modificationDate
+        - status
+      properties:
+        deedTypeId:
+          type: integer
+          description: Deed type unique identifier
+          example: 1
+        notaryId:
+          type: integer
+          description: Notary ID (tenant)
+          example: 1
+        name:
+          type: string
+          description: Deed type name
+          example: "Compraventa"
+        description:
+          type: string
+          description: Deed type description
+          example: "Escritura de compraventa de inmuebles"
+        maxInscriptions:
+          type: integer
+          description: Maximum number of inscriptions allowed
+          example: 3
+        enableSubdivisions:
+          type: boolean
+          description: Whether subdivisions are enabled for this deed type
+          example: true
+        userId:
+          type: integer
+          description: User who last modified the record
+          example: 1
+        modificationDate:
+          type: string
+          format: date-time
+          description: Last modification date
+          example: "2026-11-09T12:00:00"
+        status:
+          type: integer
+          enum: [1, 2]
+          description: Deed type status (1 = active, 2 = inactive)
+          example: 1
+
+    CreateDeedTypeRequest:
+      type: object
+      required:
+        - name
+        - description
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Deed type name (must be unique within the notary)
+          example: "Compraventa"
+        description:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Deed type description
+          example: "Escritura de compraventa de inmuebles"
+        maxInscriptions:
+          type: integer
+          minimum: 1
+          default: 1
+          description: Maximum number of inscriptions allowed (defaults to 1)
+          example: 3
+        enableSubdivisions:
+          type: boolean
+          default: false
+          description: Whether subdivisions are enabled for this deed type (defaults to false)
+          example: true
+        status:
+          type: integer
+          enum: [1, 2]
+          default: 1
+          description: Deed type status (defaults to 1 = active)
+          example: 1
+
+    UpdateDeedTypeRequest:
+      type: object
+      required:
+        - name
+        - description
+        - maxInscriptions
+        - enableSubdivisions
+        - status
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Deed type name (must be unique within the notary)
+          example: "Compraventa"
+        description:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Deed type description
+          example: "Escritura de compraventa de inmuebles"
+        maxInscriptions:
+          type: integer
+          minimum: 1
+          description: Maximum number of inscriptions allowed
+          example: 3
+        enableSubdivisions:
+          type: boolean
+          description: Whether subdivisions are enabled for this deed type
+          example: true
+        status:
+          type: integer
+          enum: [1, 2]
+          description: Deed type status (1 = active, 2 = inactive)
+          example: 1
+
+    # Notary schemas
+    NotaryResponse:
+      type: object
+      required:
+        - id
+        - name
+        - notaryName
+        - city
+        - address
+        - phone
+        - rfc
+        - hasLogo
+        - status
+      properties:
+        id:
+          type: integer
+          description: Notary unique identifier
+          example: 1
+        name:
+          type: string
+          description: Notary office name
+          example: "Notaría 45 de Guadalajara"
+        notaryName:
+          type: string
+          description: Notary titular name
+          example: "Lic. Juan Pérez López"
+        city:
+          type: string
+          description: City where the notary is located
+          example: "Guadalajara"
+        address:
+          type: string
+          description: Full address of the notary office
+          example: "Av. Vallarta 1234, Col. Centro"
+        phone:
+          type: string
+          description: Contact phone number
+          example: "33 1234-5678"
+        rfc:
+          type: string
+          description: Tax identification number (RFC)
+          example: "NPL850101ABC"
+        hasLogo:
+          type: boolean
+          description: Whether the notary has a logo configured
+          example: true
+        status:
+          type: integer
+          enum: [1, 2]
+          description: Notary status (1 = active, 2 = inactive)
+          example: 1
+
+    UpdateNotaryRequest:
+      type: object
+      required:
+        - name
+        - notaryName
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Notary office name (required)
+          example: "Notaría 45 de Guadalajara"
+        notaryName:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Notary titular name (required)
+          example: "Lic. Juan Pérez López"
+        city:
+          type: string
+          maxLength: 150
+          description: City where the notary is located (optional)
+          example: "Guadalajara"
+        address:
+          type: string
+          maxLength: 500
+          description: Full address of the notary office (optional)
+          example: "Av. Vallarta 1234, Col. Centro"
+        phone:
+          type: string
+          maxLength: 20
+          pattern: "^[\\d\\s\\-]*$"
+          description: Contact phone number - only digits, spaces, and hyphens (optional)
+          example: "33 1234-5678"
+        rfc:
+          type: string
+          maxLength: 20
+          description: Tax identification number (optional)
+          example: "NPL850101ABC"
+        logo:
+          type: string
+          format: binary
+          description: Logo image file (JPG or PNG, max 512 KB)
