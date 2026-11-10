@@ -202,6 +202,21 @@ Query parameters for list:
 
 There is no DELETE endpoint; deactivate with `status: 2`.
 
+### Payment Procedures
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v3/payment-procedures` | List payment procedures (filterable) |
+| GET | `/api/v3/payment-procedures/{id}` | Get payment procedure by ID |
+| POST | `/api/v3/payment-procedures` | Create payment procedure (201, no body) |
+| PUT | `/api/v3/payment-procedures/{id}` | Update payment procedure; deactivate with `status: 2` (204) |
+
+Query parameters for list:
+- `status` (optional): 1 = active, 2 = inactive
+- `name` (optional): partial match, case- and accent-insensitive
+
+There is no DELETE endpoint; deactivate with `status: 2`.
+
 ## API Conventions
 
 - All field names are in **English** and **camelCase**
@@ -216,6 +231,15 @@ docker-compose exec api ./vendor/bin/phpunit
 ```
 
 ## Changelog
+
+### 2026-11-10 - Feature: Payment Procedures CRUD
+- New `PaymentProcedure` module (`payment_procedures` catalog) with list, get, create and update
+- Multi-tenant filtering by notary; name uniqueness per notary (case- and accent-insensitive)
+- Soft delete via `status: 2`; no DELETE endpoint
+- Requires DB migration `add_notary_status_index_to_payment_procedures`
+- Endpoints added:
+  - `GET /api/v3/payment-procedures`, `GET /api/v3/payment-procedures/{id}`
+  - `POST /api/v3/payment-procedures`, `PUT /api/v3/payment-procedures/{id}`
 
 ### 2026-11-10 - Feature: Payment Taxes CRUD
 - New `PaymentTax` module (`payment_taxes` catalog) with list, get, create and update

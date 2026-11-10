@@ -17,6 +17,8 @@ use App\Module\DeedType\Repository\DeedTypeRepository;
 use App\Module\DeedType\Service\DeedTypeService;
 use App\Module\PaymentTax\Repository\PaymentTaxRepository;
 use App\Module\PaymentTax\Service\PaymentTaxService;
+use App\Module\PaymentProcedure\Repository\PaymentProcedureRepository;
+use App\Module\PaymentProcedure\Service\PaymentProcedureService;
 use App\Module\Notary\Repository\NotaryRepository;
 use App\Module\Notary\Service\NotaryService;
 use App\Module\Deed\Repository\DeedRepository;
@@ -79,6 +81,16 @@ ServiceLocator::register(PaymentTaxRepository::class, function () {
 ServiceLocator::register(PaymentTaxService::class, function () {
     return new PaymentTaxService(
         ServiceLocator::get(PaymentTaxRepository::class)
+    );
+});
+
+ServiceLocator::register(PaymentProcedureRepository::class, function () {
+    return new PaymentProcedureRepository(Connection::getInstance());
+});
+
+ServiceLocator::register(PaymentProcedureService::class, function () {
+    return new PaymentProcedureService(
+        ServiceLocator::get(PaymentProcedureRepository::class)
     );
 });
 

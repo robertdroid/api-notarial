@@ -9,6 +9,7 @@ use App\Module\Act\Controller\ActController;
 use App\Module\Subdivision\Controller\SubdivisionController;
 use App\Module\DeedType\Controller\DeedTypeController;
 use App\Module\PaymentTax\Controller\PaymentTaxController;
+use App\Module\PaymentProcedure\Controller\PaymentProcedureController;
 use App\Module\Notary\Controller\NotaryController;
 use App\Module\Deed\Controller\DeedController;
 
@@ -59,6 +60,12 @@ $router->get('/api/v3/payment-taxes', [PaymentTaxController::class, 'index'])->w
 $router->get('/api/v3/payment-taxes/{id}', [PaymentTaxController::class, 'show'])->withMiddleware('auth');
 $router->post('/api/v3/payment-taxes', [PaymentTaxController::class, 'store'])->withMiddleware('auth');
 $router->put('/api/v3/payment-taxes/{id}', [PaymentTaxController::class, 'update'])->withMiddleware('auth');
+
+// Payment Procedures routes (protected)
+$router->get('/api/v3/payment-procedures', [PaymentProcedureController::class, 'index'])->withMiddleware('auth');
+$router->get('/api/v3/payment-procedures/{id}', [PaymentProcedureController::class, 'show'])->withMiddleware('auth');
+$router->post('/api/v3/payment-procedures', [PaymentProcedureController::class, 'store'])->withMiddleware('auth');
+$router->put('/api/v3/payment-procedures/{id}', [PaymentProcedureController::class, 'update'])->withMiddleware('auth');
 
 // Notary profile routes (protected)
 $router->get('/api/v3/notary', [NotaryController::class, 'show'])->withMiddleware('auth');
