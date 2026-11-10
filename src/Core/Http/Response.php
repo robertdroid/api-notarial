@@ -67,6 +67,21 @@ class Response
         return self::json(['error' => $message], 500);
     }
 
+    public static function file(string $path, string $mimeType, int $size): self
+    {
+        return new self(
+            body: null,
+            statusCode: 200,
+            headers: [
+                'Content-Type' => $mimeType,
+                'Content-Length' => (string) $size,
+                'Content-Disposition' => 'inline',
+                'Cache-Control' => 'public, max-age=3600',
+                'X-File-Path' => $path,
+            ]
+        );
+    }
+
     public function getBody(): mixed
     {
         return $this->body;
@@ -101,7 +116,16 @@ class Response
         http_response_code($this->statusCode);
 
         foreach ($this->headers as $name => $value) {
+            if ($name === 'X-File-Path') {
+                continue;
+            }
             header("$name: $value");
+        }
+
+        // If it's a file response, send the file content
+        if (isset($this->headers['X-File-Path'])) {
+            readfile($this->headers['X-File-Path']);
+            return;
         }
 
         if ($this->body !== null) {

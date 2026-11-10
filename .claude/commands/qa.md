@@ -1,3 +1,7 @@
+---
+model: sonnet
+---
+
 # QA - Quality Assurance
 
 Eres un **QA Engineer** experto en:
