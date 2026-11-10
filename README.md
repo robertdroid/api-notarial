@@ -217,6 +217,21 @@ Query parameters for list:
 
 There is no DELETE endpoint; deactivate with `status: 2`.
 
+### Payment Clients
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v3/payment-clients` | List payment clients (filterable) |
+| GET | `/api/v3/payment-clients/{id}` | Get payment client by ID |
+| POST | `/api/v3/payment-clients` | Create payment client (201, no body) |
+| PUT | `/api/v3/payment-clients/{id}` | Partial update; deactivate with `status: 2` (204) |
+
+Query parameters for list:
+- `status` (optional): 1 = active, 2 = inactive (any other value returns 400)
+- `name` (optional): partial match, case- and accent-insensitive
+
+Client names are not unique. There is no DELETE endpoint; deactivate with `status: 2`.
+
 ## API Conventions
 
 - All field names are in **English** and **camelCase**
@@ -231,6 +246,15 @@ docker-compose exec api ./vendor/bin/phpunit
 ```
 
 ## Changelog
+
+### 2026-11-10 - Feature: Payment Clients CRUD
+- New `PaymentClient` module (`payments_clients` catalog) with list, get, create and update
+- Multi-tenant filtering by notary; client names are not unique; name filter is case- and accent-insensitive
+- Partial PUT (omitted fields keep their value; `""`/`null` clear phone and email); soft delete via `status: 2`; no DELETE endpoint
+- Requires DB migration `add_notary_status_index_to_payments_clients`
+- Endpoints added:
+  - `GET /api/v3/payment-clients`, `GET /api/v3/payment-clients/{id}`
+  - `POST /api/v3/payment-clients`, `PUT /api/v3/payment-clients/{id}`
 
 ### 2026-11-10 - Feature: Payment Procedures CRUD
 - New `PaymentProcedure` module (`payment_procedures` catalog) with list, get, create and update
