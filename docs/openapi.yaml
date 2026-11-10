@@ -32,6 +32,8 @@ tags:
     description: Subdivisions/locations management (catalog per notary)
   - name: DeedTypes
     description: Deed types management (catalog per notary)
+  - name: PaymentTaxes
+    description: Payment taxes/concepts catalog management (catalog per notary)
   - name: Notary
     description: Notary profile management (current user's notary)
   - name: Deeds
@@ -724,6 +726,215 @@ paths:
               example:
                 error: "Deed type not found"
 
+  /payment-taxes:
+    get:
+      tags:
+        - PaymentTaxes
+      summary: List payment taxes
+      description: |
+        Returns all payment taxes of the authenticated user's notary, ordered by name.
+
+        Supports optional filtering by status and name. The name filter is a partial match,
+        case- and accent-insensitive (e.g. `subdivision` matches "Pago de Subdivisión").
+        The wildcards `%` and `_` are treated as literal characters.
+      operationId: listPaymentTaxes
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter by status (1 = active, 2 = inactive)
+          required: false
+          schema:
+            type: integer
+            enum: [1, 2]
+        - name: name
+          in: query
+          description: Filter by name (partial match, case- and accent-insensitive)
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of payment taxes (empty array when none match)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PaymentTaxResponse'
+        '400':
+          description: Invalid status value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid status value"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - PaymentTaxes
+      summary: Create a payment tax
+      description: |
+        Creates a payment tax for the authenticated user's notary.
+
+        - The name must be unique within the notary (case- and accent-insensitive)
+        - Names are trimmed before validation and storage
+        - Emoji and other 4-byte characters are not supported
+      operationId: createPaymentTax
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePaymentTaxRequest'
+      responses:
+        '201':
+          description: Payment tax created successfully (no body)
+        '400':
+          description: Validation error or duplicate name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validation:
+                  summary: Validation error
+                  value:
+                    error: "Validation failed"
+                    errors:
+                      taxName: "Tax name is required"
+                duplicate:
+                  summary: Duplicate name
+                  value:
+                    error: "Tax name already exists"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /payment-taxes/{id}:
+    get:
+      tags:
+        - PaymentTaxes
+      summary: Get payment tax by ID
+      description: |
+        Returns a single payment tax by its ID.
+
+        Returns 404 if the tax doesn't exist, belongs to a different notary, or the ID is not positive.
+      operationId: getPaymentTax
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Payment tax ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Payment tax details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentTaxResponse'
+        '400':
+          description: Invalid ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid ID format"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Tax not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Tax not found"
+
+    put:
+      tags:
+        - PaymentTaxes
+      summary: Update a payment tax
+      description: |
+        Partially updates a payment tax. Fields that are omitted are left unchanged,
+        but at least one of `taxName` or `status` is required.
+
+        - Setting status to 2 deactivates the tax (soft delete); there is no DELETE endpoint
+        - Name uniqueness is validated only when `taxName` is sent, excluding the current record
+        - Deactivating a tax that is used by a payment procedure is allowed
+      operationId: updatePaymentTax
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Payment tax ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePaymentTaxRequest'
+      responses:
+        '204':
+          description: Payment tax updated successfully (no body)
+        '400':
+          description: Invalid ID format, validation error or duplicate name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validation:
+                  summary: Empty body
+                  value:
+                    error: "Validation failed"
+                    errors:
+                      body: "At least one field (taxName, status) is required"
+                duplicate:
+                  summary: Duplicate name
+                  value:
+                    error: "Tax name already exists"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Tax not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Tax not found"
+
   /deeds:
     get:
       tags:
@@ -1391,6 +1602,62 @@ components:
           enum: [1, 2]
           description: Deed type status (1 = active, 2 = inactive)
           example: 1
+
+    # Payment Taxes schemas
+    PaymentTaxResponse:
+      type: object
+      required:
+        - taxId
+        - taxName
+        - status
+      properties:
+        taxId:
+          type: integer
+          description: Payment tax unique identifier
+          example: 1
+        taxName:
+          type: string
+          description: Payment tax name
+          example: "ISR"
+        status:
+          type: integer
+          enum: [1, 2]
+          description: Payment tax status (1 = active, 2 = inactive)
+          example: 1
+
+    CreatePaymentTaxRequest:
+      type: object
+      required:
+        - taxName
+      properties:
+        taxName:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Payment tax name (trimmed; unique within the notary, case- and accent-insensitive)
+          example: "ISR"
+        status:
+          type: integer
+          enum: [1, 2]
+          default: 1
+          description: Payment tax status (defaults to 1 = active). Must be a JSON integer.
+          example: 1
+
+    UpdatePaymentTaxRequest:
+      type: object
+      minProperties: 1
+      properties:
+        taxName:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: New payment tax name (optional; unique within the notary)
+          example: "ISR"
+        status:
+          type: integer
+          enum: [1, 2]
+          description: New payment tax status (optional; 1 = active, 2 = inactive)
+          example: 2
 
     # Notary schemas
     NotaryResponse:
