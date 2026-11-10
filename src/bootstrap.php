@@ -17,6 +17,8 @@ use App\Module\DeedType\Repository\DeedTypeRepository;
 use App\Module\DeedType\Service\DeedTypeService;
 use App\Module\Notary\Repository\NotaryRepository;
 use App\Module\Notary\Service\NotaryService;
+use App\Module\Deed\Repository\DeedRepository;
+use App\Module\Deed\Service\DeedService;
 
 $dotenv = Dotenv::createImmutable(BASE_PATH);
 $dotenv->load();
@@ -75,5 +77,15 @@ ServiceLocator::register(NotaryRepository::class, function () {
 ServiceLocator::register(NotaryService::class, function () {
     return new NotaryService(
         ServiceLocator::get(NotaryRepository::class)
+    );
+});
+
+ServiceLocator::register(DeedRepository::class, function () {
+    return new DeedRepository(Connection::getInstance());
+});
+
+ServiceLocator::register(DeedService::class, function () {
+    return new DeedService(
+        ServiceLocator::get(DeedRepository::class)
     );
 });

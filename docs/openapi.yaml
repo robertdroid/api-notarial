@@ -34,6 +34,8 @@ tags:
     description: Deed types management (catalog per notary)
   - name: Notary
     description: Notary profile management (current user's notary)
+  - name: Deeds
+    description: Deeds listing and search (current user's notary)
 
 paths:
   /health:
@@ -721,6 +723,76 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
               example:
                 error: "Deed type not found"
+
+  /deeds:
+    get:
+      tags:
+        - Deeds
+      summary: List deeds
+      description: |
+        Returns a paginated list of the deeds of the authenticated user's notary
+        (100 per page), ordered by deed number descending. Numeric deed numbers come
+        first; non-numeric ones are placed last.
+
+        **Search:** `search` is split into words (max 10 words, 100 characters each).
+        Matching is case- and accent-insensitive and every word must match as a substring.
+        A deed matches when all words are found in its number + act name, or when all words
+        are found in the number + act name + name of a single active participant
+        (seller or buyer). Word order is irrelevant.
+
+        A page beyond the last one returns `200` with an empty `data` array.
+      operationId: listDeeds
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number (positive integer). Defaults to 1.
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: search
+          in: query
+          description: Free text searched in deed number, act name and participant names
+          required: false
+          schema:
+            type: string
+          example: "compraventa perez"
+      responses:
+        '200':
+          description: Paginated list of deeds
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - pagination
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DeedListItem'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Validation failed"
+                errors:
+                  page: "Page must be a positive integer"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /notary:
     get:
@@ -1415,3 +1487,50 @@ components:
           type: string
           format: binary
           description: Logo image file (JPG or PNG, max 512 KB)
+
+    DeedListItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        deedNumber:
+          type: string
+          description: Deed number (trimmed; may contain non-numeric text)
+          example: "39734"
+        book:
+          type: string
+          example: "750"
+        deedDate:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-10-30"
+        actName:
+          type: string
+          nullable: true
+          example: "Compraventa"
+        deedTypeName:
+          type: string
+          nullable: true
+          example: "Actuales"
+        isFinished:
+          type: boolean
+          example: false
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        perPage:
+          type: integer
+          example: 100
+        total:
+          type: integer
+          example: 13372
+        totalPages:
+          type: integer
+          description: 0 when there are no results
+          example: 134
