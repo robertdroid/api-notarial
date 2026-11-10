@@ -34,6 +34,8 @@ tags:
     description: Deed types management (catalog per notary)
   - name: PaymentTaxes
     description: Payment taxes/concepts catalog management (catalog per notary)
+  - name: PaymentProcedures
+    description: Payment procedures catalog management (catalog per notary)
   - name: Notary
     description: Notary profile management (current user's notary)
   - name: Deeds
@@ -935,6 +937,217 @@ paths:
               example:
                 error: "Tax not found"
 
+  /payment-procedures:
+    get:
+      tags:
+        - PaymentProcedures
+      summary: List payment procedures
+      description: |
+        Returns all payment procedures of the authenticated user's notary, ordered by name.
+        The list is not paginated.
+
+        Supports optional filtering by status and name. The name filter is a partial match,
+        case- and accent-insensitive (e.g. `subdivision` matches "SUBDIVISIÓN").
+        The wildcards `%` and `_` are treated as literal characters.
+      operationId: listPaymentProcedures
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter by status (1 = active, 2 = inactive)
+          required: false
+          schema:
+            type: integer
+            enum: [1, 2]
+        - name: name
+          in: query
+          description: Filter by name (partial match, case- and accent-insensitive)
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of payment procedures (empty array when none match)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PaymentProcedureResponse'
+        '400':
+          description: Invalid status value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid status value"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - PaymentProcedures
+      summary: Create a payment procedure
+      description: |
+        Creates a payment procedure for the authenticated user's notary.
+
+        - The name must be unique within the notary (case- and accent-insensitive)
+        - Names are trimmed before validation and storage
+        - Emoji and other 4-byte characters are not supported
+        - `notaryId` in the body is ignored; the notary of the token is always used
+      operationId: createPaymentProcedure
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePaymentProcedureRequest'
+      responses:
+        '201':
+          description: Payment procedure created successfully (no body)
+        '400':
+          description: Validation error or duplicate name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validation:
+                  summary: Validation error
+                  value:
+                    error: "Validation failed"
+                    errors:
+                      procedureName: "Procedure name is required"
+                duplicate:
+                  summary: Duplicate name
+                  value:
+                    error: "Procedure name already exists"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /payment-procedures/{id}:
+    get:
+      tags:
+        - PaymentProcedures
+      summary: Get payment procedure by ID
+      description: |
+        Returns a single payment procedure by its ID.
+
+        Returns 404 if the procedure doesn't exist, belongs to a different notary, or the ID is not positive.
+      operationId: getPaymentProcedure
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Payment procedure ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Payment procedure details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentProcedureResponse'
+        '400':
+          description: Invalid ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid ID format"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Procedure not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Procedure not found"
+
+    put:
+      tags:
+        - PaymentProcedures
+      summary: Update a payment procedure
+      description: |
+        Partially updates a payment procedure. Fields that are omitted are left unchanged,
+        but at least one of `procedureName` or `status` is required.
+
+        - Setting status to 2 deactivates the procedure (soft delete); there is no DELETE endpoint (405)
+        - Name uniqueness is validated only when the name actually changes (case-insensitive),
+          excluding the current record. Re-sending the current name is accepted.
+      operationId: updatePaymentProcedure
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Payment procedure ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePaymentProcedureRequest'
+      responses:
+        '204':
+          description: Payment procedure updated successfully (no body)
+        '400':
+          description: Invalid ID format, validation error or duplicate name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validation:
+                  summary: Empty body
+                  value:
+                    error: "Validation failed"
+                    errors:
+                      body: "At least one field (procedureName, status) is required"
+                duplicate:
+                  summary: Duplicate name
+                  value:
+                    error: "Procedure name already exists"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Procedure not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Procedure not found"
+
   /deeds:
     get:
       tags:
@@ -1657,6 +1870,62 @@ components:
           type: integer
           enum: [1, 2]
           description: New payment tax status (optional; 1 = active, 2 = inactive)
+          example: 2
+
+    # Payment Procedures schemas
+    PaymentProcedureResponse:
+      type: object
+      required:
+        - procedureId
+        - procedureName
+        - status
+      properties:
+        procedureId:
+          type: integer
+          description: Payment procedure unique identifier
+          example: 1
+        procedureName:
+          type: string
+          description: Payment procedure name
+          example: "Escritura de compraventa"
+        status:
+          type: integer
+          enum: [1, 2]
+          description: Payment procedure status (1 = active, 2 = inactive)
+          example: 1
+
+    CreatePaymentProcedureRequest:
+      type: object
+      required:
+        - procedureName
+      properties:
+        procedureName:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Payment procedure name (trimmed; unique within the notary, case- and accent-insensitive)
+          example: "Escritura de compraventa"
+        status:
+          type: integer
+          enum: [1, 2]
+          default: 1
+          description: Payment procedure status (defaults to 1 = active). Must be a JSON integer.
+          example: 1
+
+    UpdatePaymentProcedureRequest:
+      type: object
+      minProperties: 1
+      properties:
+        procedureName:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: New payment procedure name (optional; unique within the notary)
+          example: "Escritura de compraventa"
+        status:
+          type: integer
+          enum: [1, 2]
+          description: New payment procedure status (optional; 1 = active, 2 = inactive)
           example: 2
 
     # Notary schemas
