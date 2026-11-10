@@ -192,6 +192,8 @@ Response ← Controller ← Service ← Repository ← Database
 - `401` - Unauthorized
 - `403` - Forbidden
 - `404` - Not Found
+- `409` - Conflict (resource already exists / already in the requested state)
+- `422` - Unprocessable Entity (valid request, but a related resource is in a state that forbids it, e.g. inactive)
 - `500` - Internal Server Error
 
 ## Multi-tenancy

@@ -62,6 +62,39 @@ class PaymentTaxRepository
         return $row ? PaymentTax::fromRow($row) : null;
     }
 
+    /**
+     * @param int[] $ids
+     * @return array<int, PaymentTax> indexed by tax id
+     */
+    public function findByIdsAndNotary(array $ids, int $notaryId): array
+    {
+        $ids = array_values(array_unique($ids));
+        if ($ids === []) {
+            return [];
+        }
+
+        $params = ['notaryId' => $notaryId];
+        $placeholders = [];
+        foreach ($ids as $i => $id) {
+            $placeholders[] = ":id$i";
+            $params["id$i"] = $id;
+        }
+
+        $sql = 'SELECT ' . self::COLUMNS . ' FROM payment_taxes WHERE id_notary = :notaryId AND id_tax IN ('
+            . implode(', ', $placeholders) . ')';
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+
+        $taxes = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $tax = PaymentTax::fromRow($row);
+            $taxes[$tax->id] = $tax;
+        }
+
+        return $taxes;
+    }
+
     public function existsByNameAndNotary(string $name, int $notaryId, ?int $excludeId = null): bool
     {
         $sql = 'SELECT COUNT(*) FROM payment_taxes WHERE id_notary = :notaryId AND '

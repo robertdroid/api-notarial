@@ -57,6 +57,16 @@ class Response
         return self::json(['error' => $message], 404);
     }
 
+    public static function conflict(string $message = 'Conflict'): self
+    {
+        return self::json(['error' => $message], 409);
+    }
+
+    public static function unprocessable(string $message = 'Unprocessable entity'): self
+    {
+        return self::json(['error' => $message], 422);
+    }
+
     public static function methodNotAllowed(): self
     {
         return self::json(['error' => 'Method not allowed'], 405);
