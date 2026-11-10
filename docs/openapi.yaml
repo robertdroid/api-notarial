@@ -36,6 +36,8 @@ tags:
     description: Payment taxes/concepts catalog management (catalog per notary)
   - name: PaymentProcedures
     description: Payment procedures catalog management (catalog per notary)
+  - name: PaymentProcedureTaxes
+    description: Taxes configured for each payment procedure, with their default values (sub-resource of a procedure)
   - name: PaymentClients
     description: Payment clients catalog management (catalog per notary)
   - name: Notary
@@ -1150,6 +1152,293 @@ paths:
               example:
                 error: "Procedure not found"
 
+  /payment-procedures/{id}/taxes:
+    get:
+      tags:
+        - PaymentProcedureTaxes
+      summary: List the taxes of a payment procedure
+      description: |
+        Returns the active taxes configured for the procedure, in natural alphabetical order by
+        tax name (case- and accent-insensitive; ties are ordered by `taxId`).
+
+        - Returns `[]` when the procedure has no taxes
+        - Taxes that are inactive in the taxes catalog are not listed
+        - An inactive procedure can still be read
+      operationId: listPaymentProcedureTaxes
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PaymentProcedureId'
+      responses:
+        '200':
+          description: Taxes of the procedure (plain array, no envelope)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProcedureTaxResponse'
+        '400':
+          description: Invalid ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid ID format"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Procedure not found (or it belongs to a different notary)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Procedure not found"
+
+    post:
+      tags:
+        - PaymentProcedureTaxes
+      summary: Add one or several taxes to a payment procedure
+      description: |
+        Send **either** `taxId` (single) **or** `taxes` (bulk), never both.
+
+        - `defaultValue` is optional. Missing, `null`, negative and `-0` values are stored as `0`.
+          It must be a JSON number (strings and booleans are rejected)
+        - A tax previously removed from the procedure (soft deleted) is reactivated with the new `defaultValue`
+        - Bulk accepts 1 to 50 items, is **all or nothing** (if any item is invalid nothing is written)
+          and is allowed even if the procedure already has taxes
+
+        **Error codes differ by body shape for item-level business errors:**
+
+        | Error | Single | Bulk |
+        |-------|--------|------|
+        | Tax not found / other notary | 404 | 400 `errors["taxes.N.taxId"]` |
+        | Tax is inactive | 422 | 400 `errors["taxes.N.taxId"]` |
+        | Tax already assigned | 409 | 400 `errors["taxes.N.taxId"]` |
+
+        In bulk every failing item is reported at once. Procedure-level errors (404 / 422) are the same for both shapes.
+      operationId: addPaymentProcedureTaxes
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PaymentProcedureId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddProcedureTaxRequest'
+            examples:
+              single:
+                summary: Single tax
+                value:
+                  taxId: 4
+                  defaultValue: 500
+              bulk:
+                summary: Several taxes
+                value:
+                  taxes:
+                    - taxId: 4
+                      defaultValue: 500
+                    - taxId: 7
+      responses:
+        '201':
+          description: Tax(es) added (no body). Request the list again to read the result
+        '400':
+          description: Invalid ID format, validation error, or (bulk only) item-level business errors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                body:
+                  summary: Neither or both of taxId / taxes
+                  value:
+                    error: "Validation failed"
+                    errors:
+                      body: "Either taxId or taxes is required"
+                bulkFormat:
+                  summary: Invalid bulk items
+                  value:
+                    error: "Validation failed"
+                    errors:
+                      "taxes.1.taxId": "Duplicate tax ID in request"
+                      "taxes.2.defaultValue": "Default value must be a number"
+                bulkBusiness:
+                  summary: Bulk item rejected by business rules
+                  value:
+                    error: "Validation failed"
+                    errors:
+                      "taxes.0.taxId": "Tax is already assigned to this procedure"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Procedure not found, or (single only) tax not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                procedure:
+                  value:
+                    error: "Procedure not found"
+                tax:
+                  value:
+                    error: "Tax not found"
+        '409':
+          description: (Single only) The tax is already assigned and active in this procedure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Tax is already assigned to this procedure"
+        '422':
+          description: The procedure is inactive, or (single only) the tax is inactive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                procedure:
+                  value:
+                    error: "Procedure is inactive"
+                tax:
+                  value:
+                    error: "Tax is inactive"
+
+  /payment-procedures/{id}/taxes/{taxId}:
+    put:
+      tags:
+        - PaymentProcedureTaxes
+      summary: Update the default value of a tax in a procedure
+      description: |
+        Changes the `defaultValue` of an active assignment. `defaultValue` is required and must be a
+        JSON number; negative values are stored as `0`.
+
+        Not allowed (422) if the procedure or the tax is inactive.
+      operationId: updatePaymentProcedureTax
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PaymentProcedureId'
+        - $ref: '#/components/parameters/PaymentProcedureTaxId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProcedureTaxRequest'
+      responses:
+        '204':
+          description: Default value updated (no body)
+        '400':
+          description: Invalid ID format or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validation:
+                  value:
+                    error: "Validation failed"
+                    errors:
+                      defaultValue: "Default value is required"
+                invalidTaxId:
+                  value:
+                    error: "Invalid tax ID format"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Procedure or tax not found, or the tax is not assigned to the procedure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                procedure:
+                  value:
+                    error: "Procedure not found"
+                tax:
+                  value:
+                    error: "Tax not found"
+                notAssigned:
+                  value:
+                    error: "Tax is not assigned to this procedure"
+        '422':
+          description: The procedure or the tax is inactive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                procedure:
+                  value:
+                    error: "Procedure is inactive"
+                tax:
+                  value:
+                    error: "Tax is inactive"
+
+    delete:
+      tags:
+        - PaymentProcedureTaxes
+      summary: Remove a tax from a procedure
+      description: |
+        Soft delete: the assignment is marked inactive and no row is physically deleted.
+        It can be reactivated later with `POST`.
+
+        Allowed even if the procedure or the tax is inactive, so stale assignments can be cleaned up.
+      operationId: deletePaymentProcedureTax
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PaymentProcedureId'
+        - $ref: '#/components/parameters/PaymentProcedureTaxId'
+      responses:
+        '204':
+          description: Tax removed from the procedure (no body)
+        '400':
+          description: Invalid ID or tax ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid tax ID format"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Procedure not found, or the tax has no active assignment in the procedure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                procedure:
+                  value:
+                    error: "Procedure not found"
+                notAssigned:
+                  value:
+                    error: "Tax is not assigned to this procedure"
+
   /payment-clients:
     get:
       tags:
@@ -1586,6 +1875,22 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: JWT access token obtained from /auth/login
+
+  parameters:
+    PaymentProcedureId:
+      name: id
+      in: path
+      required: true
+      description: Payment procedure ID
+      schema:
+        type: integer
+    PaymentProcedureTaxId:
+      name: taxId
+      in: path
+      required: true
+      description: Payment tax ID
+      schema:
+        type: integer
 
   schemas:
     HealthResponse:
@@ -2136,6 +2441,91 @@ components:
           enum: [1, 2]
           description: New payment procedure status (optional; 1 = active, 2 = inactive)
           example: 2
+
+    # Payment Procedure Taxes schemas
+    ProcedureTaxResponse:
+      type: object
+      required:
+        - procedureId
+        - taxId
+        - taxName
+        - defaultValue
+      properties:
+        procedureId:
+          type: integer
+          description: Payment procedure ID
+          example: 1
+        taxId:
+          type: integer
+          description: Payment tax ID
+          example: 4
+        taxName:
+          type: string
+          description: Payment tax name
+          example: "ISR"
+        defaultValue:
+          type: number
+          format: double
+          description: Default value of the tax for this procedure
+          example: 500
+
+    AddProcedureTaxRequest:
+      description: Provide either `taxId` (single) or `taxes` (bulk), never both
+      oneOf:
+        - $ref: '#/components/schemas/AddSingleProcedureTaxRequest'
+        - $ref: '#/components/schemas/AddBulkProcedureTaxesRequest'
+
+    AddSingleProcedureTaxRequest:
+      type: object
+      required:
+        - taxId
+      additionalProperties: false
+      properties:
+        taxId:
+          type: integer
+          minimum: 1
+          description: Payment tax ID. Must be a JSON integer
+          example: 4
+        defaultValue:
+          type: number
+          nullable: true
+          description: Default value (optional). Missing, null or negative values are stored as 0. Must be a JSON number
+          example: 500
+
+    AddBulkProcedureTaxesRequest:
+      type: object
+      required:
+        - taxes
+      additionalProperties: false
+      properties:
+        taxes:
+          type: array
+          minItems: 1
+          maxItems: 50
+          description: Taxes to add (all or nothing). `taxId` values must not repeat
+          items:
+            type: object
+            required:
+              - taxId
+            properties:
+              taxId:
+                type: integer
+                minimum: 1
+                example: 4
+              defaultValue:
+                type: number
+                nullable: true
+                example: 500
+
+    UpdateProcedureTaxRequest:
+      type: object
+      required:
+        - defaultValue
+      properties:
+        defaultValue:
+          type: number
+          description: New default value (required, not null). Negative values are stored as 0
+          example: 750.5
 
     # Payment Clients schemas
     PaymentClientResponse:
