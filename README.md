@@ -165,6 +165,28 @@ Response fields:
 - `enableSubdivisions`: Whether subdivisions are enabled (boolean)
 - `status`: 1 = active, 2 = inactive
 
+### Deeds
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v3/deeds` | List deeds (paginated, searchable) |
+
+Query parameters for list:
+- `page` (optional): positive integer, default 1. Invalid values return 400
+- `search` (optional): free text, split into words (max 10). Case- and accent-insensitive; every word must match in the deed number + act name, or all in a single active participant (seller/buyer). Word order is irrelevant
+
+Results are ordered by deed number descending (numeric first), 100 per page.
+
+```json
+{
+  "data": [
+    { "id": 1, "deedNumber": "39734", "book": "750", "deedDate": "2026-10-30",
+      "actName": "Compraventa", "deedTypeName": "Actuales", "isFinished": false }
+  ],
+  "pagination": { "page": 1, "perPage": 100, "total": 13372, "totalPages": 134 }
+}
+```
+
 ## API Conventions
 
 - All field names are in **English** and **camelCase**
@@ -179,6 +201,12 @@ docker-compose exec api ./vendor/bin/phpunit
 ```
 
 ## Changelog
+
+### 2026-11-10 - Feature: Deeds List
+- New `Deed` module with `GET /api/v3/deeds`: paginated list (100 per page) with word search over deed number, act and participants
+- Multi-tenant filtering by notary; participants with deleted status are not searched
+- Requires DB migration `add_search_indexes_to_escrituras` (indexes on `escrituras` and `participantes_escritura`)
+- Reusable `Shared\Pagination\PaginatedResult`
 
 ### 2026-11-09 - Feature: Deed Types CRUD
 - CRUD module for deed types (tipos de escritura)
