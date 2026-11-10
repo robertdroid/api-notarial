@@ -36,6 +36,8 @@ tags:
     description: Payment taxes/concepts catalog management (catalog per notary)
   - name: PaymentProcedures
     description: Payment procedures catalog management (catalog per notary)
+  - name: PaymentClients
+    description: Payment clients catalog management (catalog per notary)
   - name: Notary
     description: Notary profile management (current user's notary)
   - name: Deeds
@@ -1148,6 +1150,213 @@ paths:
               example:
                 error: "Procedure not found"
 
+  /payment-clients:
+    get:
+      tags:
+        - PaymentClients
+      summary: List payment clients
+      description: |
+        Returns all payment clients of the authenticated user's notary, in natural alphabetical
+        order by full name (case- and accent-insensitive; ties are ordered by `clientId`).
+        The list is not paginated.
+
+        Supports optional filtering by status and name. The name filter is a partial match,
+        case- and accent-insensitive (e.g. `lopez` matches "José López").
+        The wildcards `%` and `_` are treated as literal characters. An empty `name` means no filter.
+      operationId: listPaymentClients
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter by status (1 = active, 2 = inactive)
+          required: false
+          schema:
+            type: integer
+            enum: [1, 2]
+        - name: name
+          in: query
+          description: Filter by full name (partial match, case- and accent-insensitive)
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of payment clients (empty array when none match)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PaymentClientResponse'
+        '400':
+          description: Invalid status value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid status value"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - PaymentClients
+      summary: Create a payment client
+      description: |
+        Creates a payment client for the authenticated user's notary.
+
+        - Full name is required; `phone` and `email` are optional and default to an empty string
+        - Names are **not** unique: two clients may share the same name
+        - All strings are trimmed before validation and storage
+        - `phone` and `email` accept `null` or `""`, both stored as an empty string
+        - Emoji and other 4-byte characters are not supported
+        - `notaryId` in the body is ignored; the notary of the token is always used
+        - The response has no body, so the new `clientId` can't be read from it
+      operationId: createPaymentClient
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePaymentClientRequest'
+      responses:
+        '201':
+          description: Payment client created successfully (no body)
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Validation failed"
+                errors:
+                  fullName: "Full name is required"
+                  email: "Email format is invalid"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /payment-clients/{id}:
+    get:
+      tags:
+        - PaymentClients
+      summary: Get payment client by ID
+      description: |
+        Returns a single payment client by its ID.
+
+        Returns 404 if the client doesn't exist, belongs to a different notary, or the ID is not positive.
+      operationId: getPaymentClient
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Payment client ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Payment client details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentClientResponse'
+        '400':
+          description: Invalid ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid ID format"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Client not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Client not found"
+
+    put:
+      tags:
+        - PaymentClients
+      summary: Update a payment client
+      description: |
+        Partially updates a payment client. At least one of `fullName`, `phone`, `email` or `status`
+        is required.
+
+        Field semantics:
+        - **Omitted** field: the current value is kept
+        - `phone` / `email` sent as `""`, whitespace only, or `null`: the value is **cleared** (stored as an empty string)
+        - `fullName` sent as `null` or blank: rejected with 400 (the name can't be cleared)
+        - Setting status to 2 deactivates the client (soft delete); there is no DELETE endpoint (405)
+        - Names are not unique, so no duplicate check is performed
+
+        The body is validated before the client is looked up: an invalid body for a non-existent ID returns 400.
+      operationId: updatePaymentClient
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Payment client ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePaymentClientRequest'
+      responses:
+        '204':
+          description: Payment client updated successfully (no body)
+        '400':
+          description: Invalid ID format or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Validation failed"
+                errors:
+                  body: "At least one field (fullName, phone, email, status) is required"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Client not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Client not found"
+
   /deeds:
     get:
       tags:
@@ -1926,6 +2135,98 @@ components:
           type: integer
           enum: [1, 2]
           description: New payment procedure status (optional; 1 = active, 2 = inactive)
+          example: 2
+
+    # Payment Clients schemas
+    PaymentClientResponse:
+      type: object
+      required:
+        - clientId
+        - fullName
+        - phone
+        - email
+        - status
+      properties:
+        clientId:
+          type: integer
+          description: Payment client unique identifier
+          example: 12
+        fullName:
+          type: string
+          description: Client full name
+          example: "José López Hernández"
+        phone:
+          type: string
+          description: Contact phone (empty string when not set)
+          example: "55 1234 5678"
+        email:
+          type: string
+          description: Contact email (empty string when not set)
+          example: "jose@example.com"
+        status:
+          type: integer
+          enum: [1, 2]
+          description: Client status (1 = active, 2 = inactive)
+          example: 1
+
+    CreatePaymentClientRequest:
+      type: object
+      required:
+        - fullName
+      properties:
+        fullName:
+          type: string
+          minLength: 1
+          maxLength: 250
+          description: Client full name (trimmed; not unique)
+          example: "José López Hernández"
+        phone:
+          type: string
+          nullable: true
+          maxLength: 20
+          default: ""
+          description: Contact phone (trimmed, free format; `null` or `""` are stored as empty)
+          example: "55 1234 5678"
+        email:
+          type: string
+          nullable: true
+          maxLength: 250
+          default: ""
+          description: Contact email (trimmed; must be a valid email when not empty; `null` or `""` are stored as empty)
+          example: "jose@example.com"
+        status:
+          type: integer
+          enum: [1, 2]
+          default: 1
+          description: Client status (defaults to 1 = active). Must be a JSON integer.
+          example: 1
+
+    UpdatePaymentClientRequest:
+      type: object
+      minProperties: 1
+      properties:
+        fullName:
+          type: string
+          minLength: 1
+          maxLength: 250
+          description: New full name (optional; can't be null or blank)
+          example: "José López Hernández"
+        phone:
+          type: string
+          nullable: true
+          maxLength: 20
+          description: New phone (optional). Omit to keep it; send `""` or `null` to clear it.
+          example: "55 1234 5678"
+        email:
+          type: string
+          nullable: true
+          maxLength: 250
+          description: New email (optional). Omit to keep it; send `""` or `null` to clear it.
+          example: "jose@example.com"
+        status:
+          type: integer
+          enum: [1, 2]
+          description: New client status (optional; 1 = active, 2 = inactive)
           example: 2
 
     # Notary schemas
