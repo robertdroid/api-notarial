@@ -11,6 +11,7 @@ use App\Module\DeedType\Controller\DeedTypeController;
 use App\Module\PaymentTax\Controller\PaymentTaxController;
 use App\Module\PaymentClient\Controller\PaymentClientController;
 use App\Module\PaymentProcedure\Controller\PaymentProcedureController;
+use App\Module\PaymentProcedureTax\Controller\PaymentProcedureTaxController;
 use App\Module\Notary\Controller\NotaryController;
 use App\Module\Deed\Controller\DeedController;
 
@@ -67,6 +68,10 @@ $router->get('/api/v3/payment-procedures', [PaymentProcedureController::class, '
 $router->get('/api/v3/payment-procedures/{id}', [PaymentProcedureController::class, 'show'])->withMiddleware('auth');
 $router->post('/api/v3/payment-procedures', [PaymentProcedureController::class, 'store'])->withMiddleware('auth');
 $router->put('/api/v3/payment-procedures/{id}', [PaymentProcedureController::class, 'update'])->withMiddleware('auth');
+$router->get('/api/v3/payment-procedures/{id}/taxes', [PaymentProcedureTaxController::class, 'index'])->withMiddleware('auth');
+$router->post('/api/v3/payment-procedures/{id}/taxes', [PaymentProcedureTaxController::class, 'store'])->withMiddleware('auth');
+$router->put('/api/v3/payment-procedures/{id}/taxes/{taxId}', [PaymentProcedureTaxController::class, 'update'])->withMiddleware('auth');
+$router->delete('/api/v3/payment-procedures/{id}/taxes/{taxId}', [PaymentProcedureTaxController::class, 'destroy'])->withMiddleware('auth');
 
 // Payment Clients routes (protected)
 $router->get('/api/v3/payment-clients', [PaymentClientController::class, 'index'])->withMiddleware('auth');
