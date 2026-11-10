@@ -232,6 +232,19 @@ Query parameters for list:
 
 Client names are not unique. There is no DELETE endpoint; deactivate with `status: 2`.
 
+### Payment Procedure Taxes
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v3/payment-procedures/{id}/taxes` | List active taxes configured for a procedure (flat array) |
+| POST | `/api/v3/payment-procedures/{id}/taxes` | Add one tax `{taxId, defaultValue?}` or several `{taxes: [...]}` (201, no body) |
+| PUT | `/api/v3/payment-procedures/{id}/taxes/{taxId}` | Change the default value (204) |
+| DELETE | `/api/v3/payment-procedures/{id}/taxes/{taxId}` | Disable the tax in the procedure, soft delete (204) |
+
+- `defaultValue` is optional; omitted, `null`, zero or negative values are stored as `0`.
+- POSTing a previously disabled tax re-enables it (201). An already active tax returns 409; an inactive tax or procedure returns 422.
+- Bulk is all-or-nothing (max 50 items); item errors return 400 with keys like `taxes.N.taxId`.
+
 ## API Conventions
 
 - All field names are in **English** and **camelCase**
@@ -246,6 +259,16 @@ docker-compose exec api ./vendor/bin/phpunit
 ```
 
 ## Changelog
+
+### 2026-11-10 - Feature: Payment Procedure Taxes CRUD
+- New `PaymentProcedureTax` module to configure which taxes (and default values) apply to each payment procedure
+- Single and bulk (all-or-nothing, max 50) creation; re-enabling of disabled taxes; soft delete only
+- Multi-tenant: procedure and tax must belong to the token's notary (otherwise 404)
+- `Response::conflict` (409) and `Response::unprocessable` (422) helpers added
+- Requires DB migration `add_unique_procedure_tax_to_payment_procedure_taxes` (unique `(id_procedure, id_tax)`)
+- Endpoints added:
+  - `GET /api/v3/payment-procedures/{id}/taxes`, `POST /api/v3/payment-procedures/{id}/taxes`
+  - `PUT /api/v3/payment-procedures/{id}/taxes/{taxId}`, `DELETE /api/v3/payment-procedures/{id}/taxes/{taxId}`
 
 ### 2026-11-10 - Feature: Payment Clients CRUD
 - New `PaymentClient` module (`payments_clients` catalog) with list, get, create and update
