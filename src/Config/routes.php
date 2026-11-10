@@ -9,6 +9,7 @@ use App\Module\Act\Controller\ActController;
 use App\Module\Subdivision\Controller\SubdivisionController;
 use App\Module\DeedType\Controller\DeedTypeController;
 use App\Module\Notary\Controller\NotaryController;
+use App\Module\Deed\Controller\DeedController;
 
 /**
  * API Routes Configuration
@@ -57,11 +58,13 @@ $router->get('/api/v3/notary', [NotaryController::class, 'show'])->withMiddlewar
 $router->post('/api/v3/notary', [NotaryController::class, 'update'])->withMiddleware('auth');
 $router->get('/api/v3/notary/logo', [NotaryController::class, 'logo'])->withMiddleware('auth');
 
+// Deeds routes (protected)
+$router->get('/api/v3/deeds', [DeedController::class, 'index'])->withMiddleware('auth');
+
 // Protected routes (with auth middleware)
 // $router->group(['middleware' => 'auth', 'prefix' => '/api/v3'], function (Router $router) {
 //
 //     // Deeds
-//     $router->get('/deeds', [DeedController::class, 'index']);
 //     $router->get('/deeds/{id}', [DeedController::class, 'show']);
 //     $router->post('/deeds', [DeedController::class, 'store']);
 //     $router->put('/deeds/{id}', [DeedController::class, 'update']);
