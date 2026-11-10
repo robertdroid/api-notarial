@@ -187,6 +187,21 @@ Results are ordered by deed number descending (numeric first), 100 per page.
 }
 ```
 
+### Payment Taxes
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v3/payment-taxes` | List payment taxes (filterable) |
+| GET | `/api/v3/payment-taxes/{id}` | Get payment tax by ID |
+| POST | `/api/v3/payment-taxes` | Create payment tax (201, no body) |
+| PUT | `/api/v3/payment-taxes/{id}` | Update payment tax; deactivate with `status: 2` (204) |
+
+Query parameters for list:
+- `status` (optional): 1 = active, 2 = inactive
+- `name` (optional): partial match, case- and accent-insensitive
+
+There is no DELETE endpoint; deactivate with `status: 2`.
+
 ## API Conventions
 
 - All field names are in **English** and **camelCase**
@@ -201,6 +216,15 @@ docker-compose exec api ./vendor/bin/phpunit
 ```
 
 ## Changelog
+
+### 2026-11-10 - Feature: Payment Taxes CRUD
+- New `PaymentTax` module (`payment_taxes` catalog) with list, get, create and update
+- Multi-tenant filtering by notary; name uniqueness per notary (case- and accent-insensitive)
+- Soft delete via `status: 2`; no DELETE endpoint
+- Requires DB migration `add_notary_status_index_to_payment_taxes`
+- Endpoints added:
+  - `GET /api/v3/payment-taxes`, `GET /api/v3/payment-taxes/{id}`
+  - `POST /api/v3/payment-taxes`, `PUT /api/v3/payment-taxes/{id}`
 
 ### 2026-11-10 - Feature: Deeds List
 - New `Deed` module with `GET /api/v3/deeds`: paginated list (100 per page) with word search over deed number, act and participants
