@@ -40,6 +40,21 @@ tags:
     description: Taxes configured for each payment procedure, with their default values (sub-resource of a procedure)
   - name: PaymentClients
     description: Payment clients catalog management (catalog per notary)
+  - name: PaymentTransactions
+    description: |
+      Payment transactions management (transactional records per notary).
+
+      **Taxes calculation modes:**
+      - **Manual mode:** When the procedure has no active taxes configured, the `taxes` value
+        from the request is used directly and `details` are silently ignored.
+      - **Calculated mode:** When the procedure has active taxes, `taxes = Σ round(qty × amount, 2)`
+        from the details that match active taxes; the request `taxes` field is ignored.
+
+      In both modes, `total = round(fee + taxes, 2)`.
+
+      **POST idempotency:** The `uuid` field makes POST idempotent. If a transaction with the
+      same `uuid` already exists for the notary, a `200` is returned with the existing record.
+      A new transaction returns `201`.
   - name: Notary
     description: Notary profile management (current user's notary)
   - name: Deeds
@@ -1646,6 +1661,316 @@ paths:
               example:
                 error: "Client not found"
 
+  /payment-transactions:
+    get:
+      tags:
+        - PaymentTransactions
+      summary: Get transaction by UUID
+      description: |
+        Returns a single transaction by its UUID. The `uuid` query parameter is required.
+
+        - UUID matching is case-sensitive and exact (no trimming)
+        - Returns 404 if no transaction with that UUID exists for this notary
+      operationId: getPaymentTransactionByUuid
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: query
+          required: true
+          description: Transaction UUID (case-sensitive)
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 50
+          example: "TXN-2026-001"
+      responses:
+        '200':
+          description: Transaction details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentTransactionResponse'
+        '400':
+          description: UUID parameter missing or invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "UUID is required"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Transaction not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Transaction not found"
+
+    post:
+      tags:
+        - PaymentTransactions
+      summary: Create a payment transaction
+      description: |
+        Creates a payment transaction for the authenticated user's notary.
+
+        **Idempotency:** If a transaction with the same `uuid` already exists for this notary,
+        the existing transaction is returned with status `200`. A new transaction returns `201`.
+        This makes POST safe to retry.
+
+        **Required fields:** `clientId`, `uuid`, `procedureId`, `date`
+
+        **Taxes calculation:**
+        - If the procedure has **no active taxes**, `taxes` is taken from the request and `details` are ignored.
+        - If the procedure has **active taxes**, `taxes = Σ round(qty × amount, 2)` from matching details;
+          the request `taxes` is ignored. Details referencing inactive taxes are silently skipped.
+
+        **Total:** `total = round(fee + taxes, 2)` (always calculated, never from request).
+
+        **Defaults:** `fee`, `taxes` default to 0; `reference`, `responsible`, `comments` default to empty;
+        `details` defaults to an empty array.
+      operationId: createPaymentTransaction
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePaymentTransactionRequest'
+      responses:
+        '200':
+          description: Transaction already exists (idempotent hit)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentTransactionResponse'
+        '201':
+          description: Transaction created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentTransactionResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                required:
+                  summary: Missing required fields
+                  value:
+                    error: "Validation failed"
+                    errors:
+                      clientId: "Client ID is required"
+                      uuid: "UUID is required"
+                      procedureId: "Procedure ID is required"
+                      date: "Date is required"
+                format:
+                  summary: Invalid field formats
+                  value:
+                    error: "Validation failed"
+                    errors:
+                      uuid: "UUID must be 1-50 alphanumeric characters, hyphens or underscores"
+                      date: "Date must be a valid date in YYYY-MM-DD format"
+                      fee: "Fee cannot be negative"
+                details:
+                  summary: Invalid details
+                  value:
+                    error: "Validation failed"
+                    errors:
+                      "details.0.taxId": "Tax ID must be a positive integer"
+                      "details.1.amount": "Detail amount cannot be negative"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Client or procedure not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                client:
+                  value:
+                    error: "Client not found"
+                procedure:
+                  value:
+                    error: "Procedure not found"
+        '422':
+          description: Client or procedure is inactive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                client:
+                  value:
+                    error: "Client is inactive"
+                procedure:
+                  value:
+                    error: "Procedure is inactive"
+
+  /payment-transactions/{id}:
+    get:
+      tags:
+        - PaymentTransactions
+      summary: Get transaction by ID
+      description: |
+        Returns a single transaction by its ID.
+
+        Returns 404 if the transaction doesn't exist or belongs to a different notary.
+      operationId: getPaymentTransaction
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Transaction ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Transaction details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentTransactionResponse'
+        '400':
+          description: Invalid ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid ID format"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Transaction not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Transaction not found"
+
+    put:
+      tags:
+        - PaymentTransactions
+      summary: Update a payment transaction
+      description: |
+        Full replacement update of a transaction. All fields except `clientId` and `uuid`
+        are required; omitted optional fields reset to their defaults.
+
+        **Required fields:** `procedureId`, `date`
+
+        **Optional fields (must match if sent):**
+        - `clientId`: If provided, must match the stored value (cannot change the client)
+        - `uuid`: If provided, must match the stored value (cannot change the UUID)
+
+        **Taxes calculation:**
+        - If the procedure has **no active taxes**, `taxes` is taken from the request and `details` are ignored.
+        - If the procedure has **active taxes**, `taxes = Σ round(qty × amount, 2)` from matching details;
+          the request `taxes` is ignored. Details referencing inactive taxes are silently skipped,
+          but existing details with now-inactive taxes are preserved.
+
+        **Procedure validation:** The procedure is only validated (must exist and be active) if it differs
+        from the current one. This allows updating other fields even if the original procedure became inactive.
+
+        **Details replacement:** The `details` array fully replaces all existing details.
+        Details for taxes that are now inactive are silently skipped (not stored).
+        Existing details for inactive taxes remain unless explicitly replaced.
+
+        **Defaults when omitted:** `fee` → 0, `taxes` → 0, `reference` → "", `responsible` → "",
+        `comments` → "", `details` → [].
+      operationId: updatePaymentTransaction
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Transaction ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePaymentTransactionRequest'
+      responses:
+        '200':
+          description: Transaction updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentTransactionResponse'
+        '400':
+          description: Validation error or clientId/uuid mismatch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                required:
+                  summary: Missing required fields
+                  value:
+                    error: "Validation failed"
+                    errors:
+                      procedureId: "Procedure ID is required"
+                      date: "Date is required"
+                mismatch:
+                  summary: Client or UUID mismatch
+                  value:
+                    error: "Validation failed"
+                    errors:
+                      clientId: "Client ID does not match the stored value"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Transaction or procedure not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                transaction:
+                  value:
+                    error: "Transaction not found"
+                procedure:
+                  value:
+                    error: "Procedure not found"
+        '422':
+          description: Procedure is inactive (only when changing procedure)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Procedure is inactive"
+
   /deeds:
     get:
       tags:
@@ -2761,3 +3086,310 @@ components:
           type: integer
           description: 0 when there are no results
           example: 134
+
+    # Payment Transactions schemas
+    PaymentTransactionResponse:
+      type: object
+      required:
+        - transactionId
+        - uuid
+        - clientId
+        - clientName
+        - procedureId
+        - procedureName
+        - date
+        - fee
+        - taxes
+        - total
+        - reference
+        - responsible
+        - comments
+        - details
+      properties:
+        transactionId:
+          type: integer
+          description: Transaction unique identifier
+          example: 42
+        uuid:
+          type: string
+          description: External unique identifier (case-sensitive)
+          example: "TXN-2026-001"
+        clientId:
+          type: integer
+          description: Payment client ID
+          example: 12
+        clientName:
+          type: string
+          description: Client full name at the time of the transaction
+          example: "José López Hernández"
+        procedureId:
+          type: integer
+          description: Payment procedure ID
+          example: 3
+        procedureName:
+          type: string
+          description: Procedure name at the time of the transaction
+          example: "Escritura de compraventa"
+        date:
+          type: string
+          format: date
+          description: Transaction date (YYYY-MM-DD)
+          example: "2026-11-11"
+        fee:
+          type: number
+          format: double
+          description: Base fee amount
+          example: 5000.00
+        taxes:
+          type: number
+          format: double
+          description: Total taxes (manual or calculated from details)
+          example: 1500.00
+        total:
+          type: number
+          format: double
+          description: Total amount (fee + taxes)
+          example: 6500.00
+        reference:
+          type: string
+          description: External reference or invoice number
+          example: "INV-2026-0042"
+        responsible:
+          type: string
+          description: Name of the responsible person
+          example: "María García"
+        comments:
+          type: string
+          description: Additional comments
+          example: "Pago parcial, resto pendiente"
+        details:
+          type: array
+          description: Transaction detail lines (taxes breakdown)
+          items:
+            $ref: '#/components/schemas/PaymentTransactionDetailResponse'
+
+    PaymentTransactionDetailResponse:
+      type: object
+      required:
+        - taxId
+        - taxName
+        - quantity
+        - amount
+        - date
+        - comments
+      properties:
+        taxId:
+          type: integer
+          description: Payment tax ID
+          example: 4
+        taxName:
+          type: string
+          description: Tax name
+          example: "ISR"
+        quantity:
+          type: integer
+          description: Quantity (multiplier for amount)
+          example: 2
+        amount:
+          type: number
+          format: double
+          description: Unit amount
+          example: 750.00
+        date:
+          type: string
+          format: date
+          nullable: true
+          description: Detail-specific date (null when not set)
+          example: "2026-11-15"
+        comments:
+          type: string
+          description: Detail comments (empty when not set)
+          example: "Primer pago"
+
+    CreatePaymentTransactionRequest:
+      type: object
+      required:
+        - clientId
+        - uuid
+        - procedureId
+        - date
+      properties:
+        clientId:
+          type: integer
+          minimum: 1
+          description: Payment client ID (must be active)
+          example: 12
+        uuid:
+          type: string
+          minLength: 1
+          maxLength: 50
+          pattern: "^[A-Za-z0-9_-]+$"
+          description: |
+            External unique identifier. Must be 1-50 characters: alphanumeric, hyphens, underscores.
+            Case-sensitive and not trimmed. Used for idempotency.
+          example: "TXN-2026-001"
+        procedureId:
+          type: integer
+          minimum: 1
+          description: Payment procedure ID (must be active)
+          example: 3
+        date:
+          type: string
+          format: date
+          description: Transaction date (YYYY-MM-DD)
+          example: "2026-11-11"
+        fee:
+          type: number
+          minimum: 0
+          default: 0
+          description: Base fee amount (non-negative, rounded to 2 decimals)
+          example: 5000.00
+        taxes:
+          type: number
+          minimum: 0
+          default: 0
+          description: |
+            Total taxes. Used only in **manual mode** (procedure has no active taxes).
+            In calculated mode, this value is ignored and computed from details.
+          example: 1500.00
+        reference:
+          type: string
+          maxLength: 500
+          default: ""
+          description: External reference or invoice number (trimmed)
+          example: "INV-2026-0042"
+        responsible:
+          type: string
+          maxLength: 500
+          default: ""
+          description: Name of the responsible person (trimmed)
+          example: "María García"
+        comments:
+          type: string
+          maxLength: 1000
+          default: ""
+          description: Additional comments (trimmed)
+          example: "Pago parcial"
+        details:
+          type: array
+          maxItems: 50
+          default: []
+          description: |
+            Transaction detail lines. In **calculated mode**, only details matching
+            active procedure taxes contribute to the `taxes` total.
+            In **manual mode**, details are silently ignored.
+          items:
+            $ref: '#/components/schemas/PaymentTransactionDetailInput'
+
+    UpdatePaymentTransactionRequest:
+      type: object
+      required:
+        - procedureId
+        - date
+      properties:
+        clientId:
+          type: integer
+          minimum: 1
+          description: |
+            Optional. If provided, must match the stored client ID (cannot be changed).
+            Omit to leave unchanged.
+          example: 12
+        uuid:
+          type: string
+          minLength: 1
+          maxLength: 50
+          pattern: "^[A-Za-z0-9_-]+$"
+          description: |
+            Optional. If provided, must match the stored UUID (cannot be changed).
+            Omit to leave unchanged.
+          example: "TXN-2026-001"
+        procedureId:
+          type: integer
+          minimum: 1
+          description: |
+            Payment procedure ID. If different from the current one, the new procedure
+            must exist and be active. If unchanged, no validation is performed (allows
+            updating other fields even if the procedure became inactive).
+          example: 3
+        date:
+          type: string
+          format: date
+          description: Transaction date (YYYY-MM-DD)
+          example: "2026-11-11"
+        fee:
+          type: number
+          minimum: 0
+          default: 0
+          description: Base fee amount (defaults to 0 if omitted)
+          example: 5000.00
+        taxes:
+          type: number
+          minimum: 0
+          default: 0
+          description: |
+            Total taxes. Used only in **manual mode**. Defaults to 0 if omitted.
+          example: 1500.00
+        reference:
+          type: string
+          maxLength: 500
+          default: ""
+          description: External reference (defaults to empty if omitted)
+          example: "INV-2026-0042"
+        responsible:
+          type: string
+          maxLength: 500
+          default: ""
+          description: Responsible person (defaults to empty if omitted)
+          example: "María García"
+        comments:
+          type: string
+          maxLength: 1000
+          default: ""
+          description: Comments (defaults to empty if omitted)
+          example: "Pago parcial"
+        details:
+          type: array
+          maxItems: 50
+          default: []
+          description: |
+            Full replacement of detail lines. Existing details for inactive taxes
+            are preserved unless this array explicitly replaces them.
+            Details for inactive taxes in this array are silently skipped.
+          items:
+            $ref: '#/components/schemas/PaymentTransactionDetailInput'
+
+    PaymentTransactionDetailInput:
+      type: object
+      required:
+        - taxId
+      properties:
+        taxId:
+          type: integer
+          minimum: 1
+          description: Payment tax ID
+          example: 4
+        quantity:
+          type: integer
+          minimum: 1
+          default: 1
+          description: Quantity (multiplier for amount)
+          example: 2
+        amount:
+          type: number
+          minimum: 0
+          default: 0
+          description: Unit amount (non-negative, rounded to 2 decimals)
+          example: 750.00
+        date:
+          type: string
+          format: date
+          nullable: true
+          default: null
+          description: Detail-specific date (YYYY-MM-DD, optional)
+          example: "2026-11-15"
+        comments:
+          type: string
+          maxLength: 500
+          default: ""
+          description: Detail comments (trimmed)
+          example: "Primer pago"
