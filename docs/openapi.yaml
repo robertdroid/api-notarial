@@ -55,6 +55,14 @@ tags:
       **POST idempotency:** The `uuid` field makes POST idempotent. If a transaction with the
       same `uuid` already exists for the notary, a `200` is returned with the existing record.
       A new transaction returns `201`.
+  - name: Users
+    description: |
+      Management of the users of the authenticated user's notary.
+
+      - Any authenticated user of the notary can manage its users (there is no admin role yet)
+      - Passwords are never returned. They are set on creation (bcrypt) and cannot be changed through this API yet
+      - `status` is normalized: legacy `0` values are exposed as `2` (inactive)
+      - A deactivated user keeps a valid access token until it expires, but can no longer refresh it
   - name: Notary
     description: Notary profile management (current user's notary)
   - name: Deeds
@@ -2041,6 +2049,255 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /users:
+    get:
+      tags:
+        - Users
+      summary: List users
+      description: |
+        Returns all users of the authenticated user's notary, ordered by paternal last name,
+        maternal last name and first name (case- and accent-insensitive; ties are ordered by `id`).
+        The list is not paginated.
+
+        Optional `status` filter: `1` returns active users; `2` returns every non-active user,
+        including legacy records stored with status `0`, which are exposed as `status: 2`.
+      operationId: listUsers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter by status (1 = active, 2 = inactive)
+          required: false
+          schema:
+            type: integer
+            enum: [1, 2]
+      responses:
+        '200':
+          description: List of users (empty array when none match)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Invalid status value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid status value"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Users
+      summary: Create a user
+      description: |
+        Creates a user in the authenticated user's notary.
+
+        - `username`, `password`, `firstName`, `paternalLastName` and `access` are required
+        - `username` is **globally unique** (across all notaries) and the check is **case-insensitive**:
+          `Maria.Lopez` conflicts with an existing `maria.lopez`. It is stored exactly as sent
+          (no trimming, case preserved) and the login is an exact match
+        - `password` is stored hashed (bcrypt) and is never returned. It is not trimmed
+        - Names are trimmed. Emoji and other 4-byte characters are not supported
+        - `access` accepts `ESC` (deeds) and `PAG` (payments). Duplicates are removed and the
+          codes are stored and returned in canonical order (`ESC`, `PAG`)
+        - `status` defaults to `1` (active)
+        - `notaryId` in the body is ignored; the notary of the token is always used
+      operationId: createUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Validation failed"
+                errors:
+                  username: "Username must be 3 to 20 characters (letters, digits, . or _)"
+                  password: "Password must be at least 8 characters"
+                  access: "At least one access code is required"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Username already exists (in any notary, case-insensitive)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Username already exists"
+
+  /users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Get user by ID
+      description: |
+        Returns a single user by its ID.
+
+        Returns 404 if the user doesn't exist, belongs to a different notary, or the ID is not positive.
+      operationId: getUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Invalid ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid ID format"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "User not found"
+
+    put:
+      tags:
+        - Users
+      summary: Update a user
+      description: |
+        Partially updates a user. At least one of `username`, `firstName`, `paternalLastName`,
+        `maternalLastName`, `access` or `status` is required. Returns the updated user.
+
+        Field semantics:
+        - **Omitted** field: the current value is kept
+        - `maternalLastName` sent as `""`, whitespace only, or `null`: the value is **cleared**
+        - `firstName` / `paternalLastName` can't be cleared (400)
+        - `password` is **rejected** with 400: it can't be changed through this endpoint
+        - Setting `status` to 2 deactivates the user (soft delete); there is no DELETE endpoint (405).
+          A user can't deactivate **themselves** (403), but can set their own status to 1
+        - When `status` is omitted the stored value is left untouched, even for legacy records stored with `0`
+        - `username` format is validated **only when the value changes** (comparison is exact, case
+          included), so users with legacy usernames can still be edited. A new username must also be
+          globally unique (case-insensitive); a user may change the casing of their own username
+
+        Validation order: ID format → body (400) → user exists (404) → self-deactivation (403) →
+        username format when changed (400) → username availability (409).
+      operationId: updateUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Invalid ID format, validation error, or invalid new username
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                emptyBody:
+                  value:
+                    error: "Validation failed"
+                    errors:
+                      body: "At least one field (username, firstName, paternalLastName, maternalLastName, access, status) is required"
+                passwordNotAllowed:
+                  value:
+                    error: "Validation failed"
+                    errors:
+                      password: "Password cannot be changed through this endpoint"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: The authenticated user tried to deactivate their own account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Cannot deactivate your own account"
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "User not found"
+        '409':
+          description: Username already exists (in any notary, case-insensitive)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Username already exists"
+
   /notary:
     get:
       tags:
@@ -2943,6 +3200,136 @@ components:
           enum: [1, 2]
           description: New client status (optional; 1 = active, 2 = inactive)
           example: 2
+
+    # User schemas
+    UserResponse:
+      type: object
+      required:
+        - id
+        - username
+        - firstName
+        - paternalLastName
+        - maternalLastName
+        - access
+        - status
+        - lastAccess
+      properties:
+        id:
+          type: integer
+          example: 13
+        username:
+          type: string
+          example: "maria.lopez"
+        firstName:
+          type: string
+          example: "María"
+        paternalLastName:
+          type: string
+          example: "López"
+        maternalLastName:
+          type: string
+          description: Empty string when not set
+          example: "García"
+        access:
+          type: array
+          description: Modules the user can use, in canonical order
+          items:
+            type: string
+            enum: [ESC, PAG]
+          example: ["ESC", "PAG"]
+        status:
+          type: integer
+          enum: [1, 2]
+          description: 1 = active, 2 = inactive (legacy `0` values are exposed as 2)
+          example: 1
+        lastAccess:
+          type: string
+          format: date-time
+          nullable: true
+          description: Last login, set by the auth module. `null` if the user never logged in
+          example: "2026-11-10T08:30:00"
+
+    CreateUserRequest:
+      type: object
+      required:
+        - username
+        - password
+        - firstName
+        - paternalLastName
+        - access
+      properties:
+        username:
+          type: string
+          pattern: '^[A-Za-z0-9._]{3,20}$'
+          description: Globally unique, case-insensitive. Stored as sent
+          example: "maria.lopez"
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 72
+          description: At least 8 characters and at most 72 bytes. Not trimmed
+          example: "SecurePass123"
+        firstName:
+          type: string
+          maxLength: 150
+          example: "María"
+        paternalLastName:
+          type: string
+          maxLength: 150
+          example: "López"
+        maternalLastName:
+          type: string
+          nullable: true
+          maxLength: 150
+          description: Optional. `null` or `""` are stored as an empty string
+          example: "García"
+        access:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            enum: [ESC, PAG]
+          example: ["ESC", "PAG"]
+        status:
+          type: integer
+          enum: [1, 2]
+          default: 1
+          description: Must be an integer (`"1"` is rejected)
+
+    UpdateUserRequest:
+      type: object
+      minProperties: 1
+      description: |
+        At least one of the fields below is required. `password` is rejected (400).
+      properties:
+        username:
+          type: string
+          description: |
+            Format `^[A-Za-z0-9._]{3,20}$`, validated only when it differs from the current value.
+            Globally unique, case-insensitive
+          example: "maria.lopez"
+        firstName:
+          type: string
+          maxLength: 150
+        paternalLastName:
+          type: string
+          maxLength: 150
+        maternalLastName:
+          type: string
+          nullable: true
+          maxLength: 150
+          description: "`null` or `\"\"` clears the value"
+        access:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            enum: [ESC, PAG]
+        status:
+          type: integer
+          enum: [1, 2]
+          description: Must be an integer. A user can't set their own status to 2 (403)
 
     # Notary schemas
     NotaryResponse:
