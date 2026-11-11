@@ -232,6 +232,17 @@ Query parameters for list:
 
 Client names are not unique. There is no DELETE endpoint; deactivate with `status: 2`.
 
+### Payment Transactions
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v3/payment-transactions` | Create a transaction with details (201); an existing `uuid` returns the existing one unchanged (200) |
+| GET | `/api/v3/payment-transactions/{id}` | Get transaction with details by ID |
+| GET | `/api/v3/payment-transactions?uuid=X` | Get transaction with details by client-generated UUID |
+| PUT | `/api/v3/payment-transactions/{id}` | Full replace of header and details (200); `clientId` and `uuid` cannot change |
+
+Totals are computed by the server. If the procedure has configured taxes, `taxes` is the sum of `quantity × amount` of the details (inactive, foreign and duplicate taxes are ignored); otherwise `taxes` comes from the request and details are ignored.
+
 ### Payment Procedure Taxes
 
 | Method | Endpoint | Description |
@@ -259,6 +270,14 @@ docker-compose exec api ./vendor/bin/phpunit
 ```
 
 ## Changelog
+
+### 2026-11-11 - Feature: Payment Transactions CRUD
+- New `PaymentTransaction` module and `Core\Database\TransactionManager` for atomic multi-table writes
+- Idempotent POST by client-generated `uuid` (offline-first); server-side totals; multi-tenant
+- Requires DB migrations `dedupe_payments_transactions_uuid` and `payments_transactions_innodb_and_indexes`
+- Endpoints added:
+  - `POST /api/v3/payment-transactions`, `GET /api/v3/payment-transactions/{id}`
+  - `GET /api/v3/payment-transactions?uuid=X`, `PUT /api/v3/payment-transactions/{id}`
 
 ### 2026-11-10 - Feature: Payment Procedure Taxes CRUD
 - New `PaymentProcedureTax` module to configure which taxes (and default values) apply to each payment procedure

@@ -23,6 +23,9 @@ use App\Module\PaymentProcedure\Repository\PaymentProcedureRepository;
 use App\Module\PaymentProcedure\Service\PaymentProcedureService;
 use App\Module\PaymentProcedureTax\Repository\PaymentProcedureTaxRepository;
 use App\Module\PaymentProcedureTax\Service\PaymentProcedureTaxService;
+use App\Core\Database\TransactionManager;
+use App\Module\PaymentTransaction\Repository\PaymentTransactionRepository;
+use App\Module\PaymentTransaction\Service\PaymentTransactionService;
 use App\Module\Notary\Repository\NotaryRepository;
 use App\Module\Notary\Service\NotaryService;
 use App\Module\Deed\Repository\DeedRepository;
@@ -117,6 +120,25 @@ ServiceLocator::register(PaymentClientRepository::class, function () {
 ServiceLocator::register(PaymentClientService::class, function () {
     return new PaymentClientService(
         ServiceLocator::get(PaymentClientRepository::class)
+    );
+});
+
+ServiceLocator::register(TransactionManager::class, function () {
+    return new TransactionManager(Connection::getInstance());
+});
+
+ServiceLocator::register(PaymentTransactionRepository::class, function () {
+    return new PaymentTransactionRepository(Connection::getInstance());
+});
+
+ServiceLocator::register(PaymentTransactionService::class, function () {
+    return new PaymentTransactionService(
+        ServiceLocator::get(PaymentTransactionRepository::class),
+        ServiceLocator::get(PaymentClientRepository::class),
+        ServiceLocator::get(PaymentProcedureRepository::class),
+        ServiceLocator::get(PaymentTaxRepository::class),
+        ServiceLocator::get(PaymentProcedureTaxRepository::class),
+        ServiceLocator::get(TransactionManager::class)
     );
 });
 
