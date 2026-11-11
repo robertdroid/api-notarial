@@ -1,0 +1,30 @@
+### POST /payment-clients scalar body (other module)
+> POST /payment-clients   body: "x"
+< HTTP 500 (0.507837s)
+{"error":"Internal Server Error","message":"App\\Core\\Http\\Request::__construct(): Argument #4 ($body) must be of type array, string given, called in /var/www/html/src/Core/Http/Request.php on line 58"}
+
+
+### POST /acts scalar body (other module)
+> POST /acts   body: "x"
+< HTTP 500 (0.052751s)
+{"error":"Internal Server Error","message":"App\\Core\\Http\\Request::__construct(): Argument #4 ($body) must be of type array, string given, called in /var/www/html/src/Core/Http/Request.php on line 58"}
+
+
+### POST /users number body
+> POST /users   body: 5
+< HTTP 500 (0.054540s)
+{"error":"Internal Server Error","message":"App\\Core\\Http\\Request::__construct(): Argument #4 ($body) must be of type array, int given, called in /var/www/html/src/Core/Http/Request.php on line 58"}
+
+
+### POST /users true body
+> POST /users   body: true
+< HTTP 500 (0.073103s)
+{"error":"Internal Server Error","message":"App\\Core\\Http\\Request::__construct(): Argument #4 ($body) must be of type array, true given, called in /var/www/html/src/Core/Http/Request.php on line 58"}
+
+
+### PUT /users/2 scalar body
+> PUT /users/2   body: "x"
+< HTTP 500 (0.048595s)
+{"error":"Internal Server Error","message":"App\\Core\\Http\\Request::__construct(): Argument #4 ($body) must be of type array, string given, called in /var/www/html/src/Core/Http/Request.php on line 58"}
+
+

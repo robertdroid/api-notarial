@@ -1,0 +1,444 @@
+### self: unchanged firstName
+> PUT /users/2   body: {"firstName":"Roberto"}
+< HTTP 200 (1.510151s)
+{"id":2,"username":"devrob","firstName":"Roberto","paternalLastName":"Trejo","maternalLastName":"Hernández","access":["ESC","PAG"],"status":1,"lastAccess":"2026-11-05T09:49:17"}
+
+
+### self: status 2 -> 403 (scenario 9)
+> PUT /users/2   body: {"status":2}
+< HTTP 403 (1.158173s)
+{"error":"Cannot deactivate your own account"}
+
+
+### self: status 2 + firstName -> 403, nothing written
+> PUT /users/2   body: {"status":2,"firstName":"Hack"}
+< HTTP 403 (0.215326s)
+{"error":"Cannot deactivate your own account"}
+
+
+### self: status 2 + invalid username -> 403 first
+> PUT /users/2   body: {"status":2,"username":"a b"}
+< HTTP 403 (1.527683s)
+{"error":"Cannot deactivate your own account"}
+
+
+### self: status 1 -> 200
+> PUT /users/2   body: {"status":1}
+< HTTP 200 (0.237260s)
+{"id":2,"username":"devrob","firstName":"Roberto","paternalLastName":"Trejo","maternalLastName":"Hernández","access":["ESC","PAG"],"status":1,"lastAccess":"2026-11-05T09:49:17"}
+
+
+### self: access [ESC] allowed
+> PUT /users/2   body: {"access":["ESC"]}
+< HTTP 200 (0.163580s)
+{"id":2,"username":"devrob","firstName":"Roberto","paternalLastName":"Trejo","maternalLastName":"Hernández","access":["ESC"],"status":1,"lastAccess":"2026-11-05T09:49:17"}
+
+
+### self: restore access
+> PUT /users/2   body: {"access":["PAG","ESC"]}
+< HTTP 200 (1.596631s)
+{"id":2,"username":"devrob","firstName":"Roberto","paternalLastName":"Trejo","maternalLastName":"Hernández","access":["ESC","PAG"],"status":1,"lastAccess":"2026-11-05T09:49:17"}
+
+
+### self: status '2' string -> 400 not 403
+> PUT /users/2   body: {"status":"2"}
+< HTTP 400 (0.177691s)
+{"error":"Validation failed","errors":{"status":"Status must be 1 or 2"}}
+
+
+### login before deactivation
+> POST /auth/login   body: {"username":"maria.lopez","password":"SecurePass123"}
+< HTTP 200 (0.311756s)
+{"accessToken":"<JWT-redacted>","refreshToken":"<JWT-redacted>","expiresIn":3600,"tokenType":"Bearer"}
+
+
+### deactivate user 13
+> PUT /users/13   body: {"status":2}
+< HTTP 200 (0.793479s)
+{"id":13,"username":"maria.lopez","firstName":"María","paternalLastName":"López","maternalLastName":"García","access":["ESC","PAG"],"status":2,"lastAccess":null}
+
+
+### login while inactive
+> POST /auth/login   body: {"username":"maria.lopez","password":"SecurePass123"}
+< HTTP 401 (0.342717s)
+{"error":"Invalid credentials"}
+
+
+### refresh while inactive
+> POST /auth/refresh   body: {"refreshToken":"<JWT-redacted>"}
+< HTTP 401 (0.466082s)
+{"error":"Invalid or expired token"}
+
+
+### list status=2 includes 13
+> GET /users?status=2   body: <none>
+< HTTP 200 (0.268302s)
+[{"id":15,"username":"inactive.user","firstName":"In","paternalLastName":"Active","maternalLastName":"","access":["ESC"],"status":2,"lastAccess":null},{"id":7,"username":"Fati","firstName":"Fátima Fernanda","paternalLastName":"Alonso","maternalLastName":"Herrera","access":["ESC","PAG"],"status":2,"lastAccess":"2026-07-24T17:00:43"},{"id":13,"username":"maria.lopez","firstName":"María","paternalLastName":"López","maternalLastName":"García","access":["ESC","PAG"],"status":2,"lastAccess":null}]
+
+
+### reactivate user 13
+> PUT /users/13   body: {"status":1}
+< HTTP 200 (0.195686s)
+{"id":13,"username":"maria.lopez","firstName":"María","paternalLastName":"López","maternalLastName":"García","access":["ESC","PAG"],"status":1,"lastAccess":null}
+
+
+### partial firstName only
+> PUT /users/13   body: {"firstName":"  Maria Elena  "}
+< HTTP 200 (0.154201s)
+{"id":13,"username":"maria.lopez","firstName":"Maria Elena","paternalLastName":"López","maternalLastName":"García","access":["ESC","PAG"],"status":1,"lastAccess":null}
+
+
+### maternalLastName null -> ''
+> PUT /users/13   body: {"maternalLastName":null}
+< HTTP 200 (0.203665s)
+{"id":13,"username":"maria.lopez","firstName":"Maria Elena","paternalLastName":"López","maternalLastName":"","access":["ESC","PAG"],"status":1,"lastAccess":null}
+
+
+### maternalLastName '' 
+> PUT /users/13   body: {"maternalLastName":""}
+< HTTP 200 (0.747471s)
+{"id":13,"username":"maria.lopez","firstName":"Maria Elena","paternalLastName":"López","maternalLastName":"","access":["ESC","PAG"],"status":1,"lastAccess":null}
+
+
+### maternalLastName set
+> PUT /users/13   body: {"maternalLastName":"Garcia"}
+< HTTP 200 (0.161953s)
+{"id":13,"username":"maria.lopez","firstName":"Maria Elena","paternalLastName":"López","maternalLastName":"Garcia","access":["ESC","PAG"],"status":1,"lastAccess":null}
+
+
+### access unordered+dups
+> PUT /users/13   body: {"access":["PAG","ESC","PAG"]}
+< HTTP 200 (0.208553s)
+{"id":13,"username":"maria.lopez","firstName":"Maria Elena","paternalLastName":"López","maternalLastName":"Garcia","access":["ESC","PAG"],"status":1,"lastAccess":null}
+
+
+### access [] (scenario 11)
+> PUT /users/13   body: {"access":[]}
+< HTTP 400 (0.185583s)
+{"error":"Validation failed","errors":{"access":"At least one access code is required"}}
+
+
+### access [XYZ] (scenario 10)
+> PUT /users/13   body: {"access":["XYZ"]}
+< HTTP 400 (1.439359s)
+{"error":"Validation failed","errors":{"access":"Access codes must be one of: ESC, PAG"}}
+
+
+### access 'ESC' string
+> PUT /users/13   body: {"access":"ESC"}
+< HTTP 400 (0.120901s)
+{"error":"Validation failed","errors":{"access":"Access must be an array"}}
+
+
+### access null
+> PUT /users/13   body: {"access":null}
+< HTTP 400 (0.139666s)
+{"error":"Validation failed","errors":{"access":"Access must be an array"}}
+
+
+### status '2' string
+> PUT /users/13   body: {"status":"2"}
+< HTTP 400 (1.376424s)
+{"error":"Validation failed","errors":{"status":"Status must be 1 or 2"}}
+
+
+### status 0
+> PUT /users/13   body: {"status":0}
+< HTTP 400 (0.149520s)
+{"error":"Validation failed","errors":{"status":"Status must be 1 or 2"}}
+
+
+### status 3
+> PUT /users/13   body: {"status":3}
+< HTTP 400 (0.148923s)
+{"error":"Validation failed","errors":{"status":"Status must be 1 or 2"}}
+
+
+### firstName ''
+> PUT /users/13   body: {"firstName":""}
+< HTTP 400 (0.154417s)
+{"error":"Validation failed","errors":{"firstName":"First name is required"}}
+
+
+### firstName null
+> PUT /users/13   body: {"firstName":null}
+< HTTP 400 (0.679588s)
+{"error":"Validation failed","errors":{"firstName":"First name must be a string"}}
+
+
+### firstName 151
+> PUT /users/13   body: {"firstName":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+< HTTP 400 (0.156785s)
+{"error":"Validation failed","errors":{"firstName":"First name must not exceed 150 characters"}}
+
+
+### paternalLastName spaces
+> PUT /users/13   body: {"paternalLastName":"   "}
+< HTTP 400 (0.187087s)
+{"error":"Validation failed","errors":{"paternalLastName":"Paternal last name is required"}}
+
+
+### idempotent same values
+> PUT /users/13   body: {"firstName":"Maria Elena","access":["ESC","PAG"]}
+< HTTP 200 (0.185471s)
+{"id":13,"username":"maria.lopez","firstName":"Maria Elena","paternalLastName":"López","maternalLastName":"Garcia","access":["ESC","PAG"],"status":1,"lastAccess":null}
+
+
+### ignores notaryId/id/lastAccess
+> PUT /users/13   body: {"notaryId":3,"id":999,"lastAccess":"2000-01-01T00:00:00","firstName":"Maria Elena"}
+< HTTP 200 (0.392117s)
+{"id":13,"username":"maria.lopez","firstName":"Maria Elena","paternalLastName":"López","maternalLastName":"Garcia","access":["ESC","PAG"],"status":1,"lastAccess":null}
+
+
+### empty object
+> PUT /users/13   body: {}
+< HTTP 400 (0.209241s)
+{"error":"Validation failed","errors":{"body":"At least one field (username, firstName, paternalLastName, maternalLastName, access, status) is required"}}
+
+
+### only unknown field
+> PUT /users/13   body: {"foo":"bar"}
+< HTTP 400 (0.463056s)
+{"error":"Validation failed","errors":{"body":"At least one field (username, firstName, paternalLastName, maternalLastName, access, status) is required"}}
+
+
+### password only
+> PUT /users/13   body: {"password":"NewPass1234"}
+< HTTP 400 (0.124621s)
+{"error":"Validation failed","errors":{"body":"At least one field (username, firstName, paternalLastName, maternalLastName, access, status) is required","password":"Password cannot be changed through this endpoint"}}
+
+
+### password + firstName (ADR-005)
+> PUT /users/13   body: {"password":"NewPass1234","firstName":"Zed"}
+< HTTP 400 (0.174788s)
+{"error":"Validation failed","errors":{"password":"Password cannot be changed through this endpoint"}}
+
+
+### login still works with ORIGINAL password
+> POST /auth/login   body: {"username":"maria.lopez","password":"SecurePass123"}
+< HTTP 200 (0.781463s)
+{"accessToken":"<JWT-redacted>","refreshToken":"<JWT-redacted>","expiresIn":3600,"tokenType":"Bearer"}
+
+
+### login with attempted new password fails
+> POST /auth/login   body: {"username":"maria.lopez","password":"NewPass1234"}
+< HTTP 401 (0.351724s)
+{"error":"Invalid credentials"}
+
+
+### valid new username
+> PUT /users/13   body: {"username":"maria.l"}
+< HTTP 200 (0.288376s)
+{"id":13,"username":"maria.l","firstName":"Maria Elena","paternalLastName":"López","maternalLastName":"Garcia","access":["ESC","PAG"],"status":1,"lastAccess":null}
+
+
+### back to original
+> PUT /users/13   body: {"username":"maria.lopez"}
+< HTTP 200 (0.173809s)
+{"id":13,"username":"maria.lopez","firstName":"Maria Elena","paternalLastName":"López","maternalLastName":"Garcia","access":["ESC","PAG"],"status":1,"lastAccess":null}
+
+
+### case-only change (own, allowed)
+> PUT /users/13   body: {"username":"Maria.Lopez"}
+< HTTP 200 (0.705470s)
+{"id":13,"username":"Maria.Lopez","firstName":"Maria Elena","paternalLastName":"López","maternalLastName":"Garcia","access":["ESC","PAG"],"status":1,"lastAccess":null}
+
+
+### login Maria.Lopez after change
+> POST /auth/login   body: {"username":"Maria.Lopez","password":"SecurePass123"}
+< HTTP 200 (0.391866s)
+{"accessToken":"<JWT-redacted>","refreshToken":"<JWT-redacted>","expiresIn":3600,"tokenType":"Bearer"}
+
+
+### login old-case maria.lopez now fails
+> POST /auth/login   body: {"username":"maria.lopez","password":"SecurePass123"}
+< HTTP 401 (0.172731s)
+{"error":"Invalid credentials"}
+
+
+### back to lower-case
+> PUT /users/13   body: {"username":"maria.lopez"}
+< HTTP 200 (0.295920s)
+{"id":13,"username":"maria.lopez","firstName":"Maria Elena","paternalLastName":"López","maternalLastName":"Garcia","access":["ESC","PAG"],"status":1,"lastAccess":null}
+
+
+### taken (exact) devrob
+> PUT /users/13   body: {"username":"devrob"}
+< HTTP 409 (0.554471s)
+{"error":"Username already exists"}
+
+
+### taken (case) DEVROB
+> PUT /users/13   body: {"username":"DEVROB"}
+< HTTP 409 (0.165603s)
+{"error":"Username already exists"}
+
+
+### taken cross-notary devrob15
+> PUT /users/13   body: {"username":"devrob15"}
+< HTTP 409 (0.178985s)
+{"error":"Username already exists"}
+
+
+### taken by created user min.user
+> PUT /users/13   body: {"username":"MIN.USER"}
+< HTTP 409 (0.332285s)
+{"error":"Username already exists"}
+
+
+### invalid 'a b' -> 400 errors.username
+> PUT /users/13   body: {"username":"a b"}
+< HTTP 400 (0.659262s)
+{"error":"Validation failed","errors":{"username":"Username must be 3 to 20 characters (letters, digits, . or _)"}}
+
+
+### invalid 'ab'
+> PUT /users/13   body: {"username":"ab"}
+< HTTP 400 (0.192558s)
+{"error":"Validation failed","errors":{"username":"Username must be 3 to 20 characters (letters, digits, . or _)"}}
+
+
+### invalid number
+> PUT /users/13   body: {"username":5}
+< HTTP 400 (0.139935s)
+{"error":"Validation failed","errors":{"username":"Username must be a string"}}
+
+
+### invalid null
+> PUT /users/13   body: {"username":null}
+< HTTP 400 (0.193027s)
+{"error":"Validation failed","errors":{"username":"Username must be a string"}}
+
+
+### precedence: invalid username + taken -> 400
+> PUT /users/13   body: {"username":"dev rob"}
+< HTTP 400 (0.218735s)
+{"error":"Validation failed","errors":{"username":"Username must be 3 to 20 characters (letters, digits, . or _)"}}
+
+
+### user not found beats username checks
+> PUT /users/99999   body: {"username":"devrob"}
+< HTTP 404 (1.560946s)
+{"error":"User not found"}
+
+
+### id abc
+> PUT /users/abc   body: {"firstName":"X"}
+< HTTP 400 (0.147720s)
+{"error":"Invalid ID format"}
+
+
+### id 0
+> PUT /users/0   body: {"firstName":"X"}
+< HTTP 404 (0.128464s)
+{"error":"User not found"}
+
+
+### id -5
+> PUT /users/-5   body: {"firstName":"X"}
+< HTTP 404 (0.586886s)
+{"error":"User not found"}
+
+
+### id 99999
+> PUT /users/99999   body: {"firstName":"X"}
+< HTTP 404 (0.213706s)
+{"error":"User not found"}
+
+
+### invalid id + invalid body: id first
+> PUT /users/abc   body: {}
+< HTTP 400 (0.082452s)
+{"error":"Invalid ID format"}
+
+
+### other-notary user 4 from n1
+> PUT /users/4   body: {"firstName":"Hacked"}
+< HTTP 404 (0.140495s)
+{"error":"User not found"}
+
+
+### other-notary user 4 from n1 + status 2 (404 not 403)
+> PUT /users/4   body: {"status":2}
+< HTTP 404 (0.162455s)
+{"error":"User not found"}
+
+
+### n3 -> n1 user 13
+> PUT /users/13   body: {"firstName":"Hacked","status":2}
+< HTTP 404 (0.713046s)
+{"error":"User not found"}
+
+
+### n3 self deactivate (user 4)
+> PUT /users/4   body: {"status":2}
+< HTTP 403 (0.306247s)
+{"error":"Cannot deactivate your own account"}
+
+
+### invalid body on other-notary user: 400 before 404
+> PUT /users/4   body: {}
+< HTTP 400 (0.518332s)
+{"error":"Validation failed","errors":{"body":"At least one field (username, firstName, paternalLastName, maternalLastName, access, status) is required"}}
+
+
+### legacy user 6 (n3): same invalid username + other field
+> PUT /users/6   body: {"username":"FANNY RECEPCION","firstName":"RUBI STEPHANIE"}
+< HTTP 200 (0.160498s)
+{"id":6,"username":"FANNY RECEPCION","firstName":"RUBI STEPHANIE","paternalLastName":"VALERO","maternalLastName":"HERNANDEZ","access":["ESC","PAG"],"status":1,"lastAccess":"2018-03-03T10:09:51"}
+
+
+### legacy user 6: only same username
+> PUT /users/6   body: {"username":"FANNY RECEPCION"}
+< HTTP 200 (0.179746s)
+{"id":6,"username":"FANNY RECEPCION","firstName":"RUBI STEPHANIE","paternalLastName":"VALERO","maternalLastName":"HERNANDEZ","access":["ESC","PAG"],"status":1,"lastAccess":"2018-03-03T10:09:51"}
+
+
+### legacy user 6: case-variant of invalid username
+> PUT /users/6   body: {"username":"fanny recepcion"}
+< HTTP 400 (0.282239s)
+{"error":"Validation failed","errors":{"username":"Username must be 3 to 20 characters (letters, digits, . or _)"}}
+
+
+### legacy user 6: new valid username
+> PUT /users/6   body: {"username":"Fanny.Recepcion"}
+< HTTP 200 (0.218508s)
+{"id":6,"username":"Fanny.Recepcion","firstName":"RUBI STEPHANIE","paternalLastName":"VALERO","maternalLastName":"HERNANDEZ","access":["ESC","PAG"],"status":1,"lastAccess":"2018-03-03T10:09:51"}
+
+
+### legacy user 6: GET before restore
+> GET /users/6   body: <none>
+< HTTP 200 (0.530748s)
+{"id":6,"username":"Fanny.Recepcion","firstName":"RUBI STEPHANIE","paternalLastName":"VALERO","maternalLastName":"HERNANDEZ","access":["ESC","PAG"],"status":1,"lastAccess":"2018-03-03T10:09:51"}
+
+
+### legacy user 7 (id_estatus=0): PUT firstName
+> PUT /users/7   body: {"firstName":"Fatima F"}
+< HTTP 200 (0.196365s)
+{"id":7,"username":"Fati","firstName":"Fatima F","paternalLastName":"Alonso","maternalLastName":"Herrera","access":["ESC","PAG"],"status":2,"lastAccess":"2026-07-24T17:00:43"}
+
+
+### legacy user 7: PUT status 2
+> PUT /users/7   body: {"status":2}
+< HTTP 200 (0.242930s)
+{"id":7,"username":"Fati","firstName":"Fatima F","paternalLastName":"Alonso","maternalLastName":"Herrera","access":["ESC","PAG"],"status":2,"lastAccess":"2026-07-24T17:00:43"}
+
+
+### legacy user 7: PUT status 1 (reactivate)
+> PUT /users/7   body: {"status":1}
+< HTTP 200 (0.676955s)
+{"id":7,"username":"Fati","firstName":"Fatima F","paternalLastName":"Alonso","maternalLastName":"Herrera","access":["ESC","PAG"],"status":1,"lastAccess":"2026-07-24T17:00:43"}
+
+
+### username sqli on PUT
+> PUT /users/13   body: {"username":"x' OR '1'='1"}
+< HTTP 400 (0.169251s)
+{"error":"Validation failed","errors":{"username":"Username must be 3 to 20 characters (letters, digits, . or _)"}}
+
+
+### id sqli on PUT
+> PUT /users/1%20OR%201=1   body: {"firstName":"X"}
+< HTTP 400 (0.172697s)
+{"error":"Invalid ID format"}
+
+
