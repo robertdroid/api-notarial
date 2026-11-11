@@ -1,0 +1,68 @@
+### DELETE /users/13 (documented 405)
+> DELETE /users/13   body: <none>
+< HTTP 405 (0.527790s)
+{"error":"Method not allowed","code":405}
+
+
+### PATCH /users/13
+> PATCH /users/13   body: {"firstName":"x"}
+< HTTP 405 (0.078617s)
+{"error":"Method not allowed","code":405}
+
+
+### POST /users/13
+> POST /users/13   body: {}
+< HTTP 405 (0.068440s)
+{"error":"Method not allowed","code":405}
+
+
+### GET /acts
+> GET /acts   body: <none>
+< HTTP 200 (0.342685s)
+[{"id":57,"actName":" Protocolización de acta de asamblea general extraordinaria de accionistas","actDescription":"","status":1,"modificationDate":"2021-09-29 18:30:25"},{"id":124,"actName":"Aceptación y reconocimiento de derechos hereditarios, designación y aceptación del cargo de albacea","actDescription":"","status":1,"modificationDate":"2021-09-09 16:57:28"},{"id":125,"actName":"Acto de Prueba QA Modificado","actDescription":"Descripcion actualizada","status":1,"modificationDate":"2026-11-09 12:28:57"},{"id":9,"actName":"Adjudicacion por herencia","actDescription":"Adjudicacion por herencia","status":1,"modificationDate":"2018-01-12 08:29:46"},{"id":4,"actName":"Adjudicacion por rebeldia","actDescription":"Adjudicacion por rebeldia","status":1,"modificationDate":"2018-01-12 08:28:53"},{"id":3,"actName":"Adjudicacion por remate","actDescription":"Adjudicacion por remate","status":1,"modificationDate":"2018-01-12 08:28:44"},{"id":122,"actName":"Adjudicación parcial","actDescription":"","status":1,"modificationDate":"2021-12-29 17:59:45"},{"id":121,"actName":"Adjudicación total","actDescription":"","status":1,"modificationDate":"2021-12-29 17:59:30"},{"id":48,"actName":"Autorizacion viaje","actDescription":"Autorizacion viaje","status":1,"modificationDate":"2018-01-12 08:56:37"},{"id":56,"actName":"C A N C E L A D O","actDescription":"C A N C E L A D O","status":1,"modificationDate":"2018-01-12 08:57:51"},{"id":147,"actName":"CANCELACION DE LA RECTIFICACION DE MEDIDAS Y COLINDANCIAS Y DIVISION DE COPROPIEDAD","actDescription":"","status":1,"modificationDate":"2022-03-03 13:08:51"},{"id":155,"actName":"CANCELACIÓN DE RECONOCIMIENTO DE ADEUDO","actDescription":"","status":1,"modificationDate":"2023-03-02 17:22:37"},{"id":149,"actName":"CONTRATO ","actDescription":
+
+### GET /subdivisions
+> GET /subdivisions   body: <none>
+< HTTP 200 (0.634051s)
+[{"subdivisionId":19,"notaryId":1,"name":"Andrade Trujillo","userId":1,"modificationDate":"2018-01-13T12:40:29","status":1},{"subdivisionId":30,"notaryId":1,"name":"Arroyo Azul","userId":1,"modificationDate":"2018-01-13T12:42:02","status":1},{"subdivisionId":29,"notaryId":1,"name":"Buena Vista","userId":1,"modificationDate":"2018-01-13T12:41:55","status":1},{"subdivisionId":21,"notaryId":1,"name":"Colonia Ampliacion 21 de marzo","userId":1,"modificationDate":"2018-01-13T12:40:45","status":1},{"subdivisionId":26,"notaryId":1,"name":"Colonia Ampliacion Juquila","userId":1,"modificationDate":"2018-01-13T12:41:30","status":1},{"subdivisionId":12,"notaryId":1,"name":"Colonia Dos Caminos","userId":1,"modificationDate":"2018-01-13T12:39:27","status":1},{"subdivisionId":8,"notaryId":1,"name":"Colonia Huilango","userId":1,"modificationDate":"2018-01-13T12:35:14","status":1},{"subdivisionId":13,"notaryId":1,"name":"Colonia Jardines de la Luz","userId":1,"modificationDate":"2018-01-13T12:39:37","status":1},{"subdivisionId":23,"notaryId":1,"name":"Colonia Las Palmas","userId":1,"modificationDate":"2018-01-13T12:41:02","status":1},{"subdivisionId":7,"notaryId":1,"name":"Colonia Los Rosales","userId":1,"modificationDate":"2018-01-13T12:35:07","status":1},{"subdivisionId":11,"notaryId":1,"name":"Colonia San Francisco","userId":1,"modificationDate":"2018-01-13T12:39:20","status":1},{"subdivisionId":17,"notaryId":1,"name":"Fraternidad Arboledas III Etapa","userId":1,"modificationDate":"2018-01-13T12:40:13","status":1},{"subdivisionId":31,"notaryId":1,"name":"Jardines de Palo Alto","userId":1,"modificationDate":"2018-01-13T12:42:11","status":1},{"subdivisionId":2,"notaryId":1,"name":"La Fortaleza","userId":1,"modificationDate":"2018-01-13T12:34:34","status":1},{"subdivisionId":5,"notaryI
+
+### GET /deed-types
+> GET /deed-types   body: <none>
+< HTTP 200 (0.265022s)
+[{"deedTypeId":2,"notaryId":1,"name":"1 a 999","description":"1 a 999","maxInscriptions":1,"enableSubdivisions":false,"userId":1,"modificationDate":"2018-01-14T09:29:38","status":1},{"deedTypeId":14,"notaryId":1,"name":"1000 a 1999","description":"1000 a 1999","maxInscriptions":1,"enableSubdivisions":false,"userId":8,"modificationDate":"2022-03-31T16:42:35","status":1},{"deedTypeId":1,"notaryId":1,"name":"Actuales","description":"Actuales","maxInscriptions":5,"enableSubdivisions":false,"userId":7,"modificationDate":"2022-02-23T13:05:36","status":1},{"deedTypeId":5,"notaryId":1,"name":"Fovissste","description":"Fovissste","maxInscriptions":2,"enableSubdivisions":false,"userId":1,"modificationDate":"2018-01-14T09:33:28","status":1},{"deedTypeId":4,"notaryId":1,"name":"Fraccionamieto","description":"Fraccionamieto","maxInscriptions":1,"enableSubdivisions":true,"userId":1,"modificationDate":"2018-01-27T07:43:46","status":1},{"deedTypeId":12,"notaryId":1,"name":"Hipotecario","description":"","maxInscriptions":2,"enableSubdivisions":false,"userId":7,"modificationDate":"2021-12-27T10:13:38","status":1},{"deedTypeId":15,"notaryId":1,"name":"IMSS","description":"","maxInscriptions":2,"enableSubdivisions":false,"userId":7,"modificationDate":"2022-07-29T13:52:41","status":1},{"deedTypeId":13,"notaryId":1,"name":"INFONAVIT-FOVISSSTE","description":"","maxInscriptions":2,"enableSubdivisions":false,"userId":7,"modificationDate":"2022-01-14T13:35:12","status":1},{"deedTypeId":3,"notaryId":1,"name":"Infonavit","description":"Infonavit","maxInscriptions":2,"enableSubdivisions":false,"userId":1,"modificationDate":"2018-01-14T09:29:57","status":1}]
+
+
+### GET /payment-taxes
+> GET /payment-taxes   body: <none>
+< HTTP 200 (0.417942s)
+[{"taxId":5,"taxName":"Certificado de valor catastral","status":1},{"taxId":4,"taxName":"Constancia de no adeudo","status":1},{"taxId":2,"taxName":"Derechos Subdivisión","status":1},{"taxId":7,"taxName":"Derechos de inscripción","status":1},{"taxId":8,"taxName":"Gastos","status":1},{"taxId":1,"taxName":"Pago de Subdivisión","status":1},{"taxId":3,"taxName":"Servidumbre de paso","status":1},{"taxId":6,"taxName":"Traslado de dominio","status":1}]
+
+
+### GET /payment-procedures
+> GET /payment-procedures   body: <none>
+< HTTP 200 (0.825977s)
+[{"procedureId":8,"procedureName":"COMPRAVENTA","status":1},{"procedureId":16,"procedureName":"Cancelación de Hipoteca","status":1},{"procedureId":15,"procedureName":"Constitución de Sociedad","status":1},{"procedureId":20,"procedureName":"Copias Certificadas ","status":1},{"procedureId":6,"procedureName":"FE DE HECHOS","status":1},{"procedureId":18,"procedureName":"Impuesto sobre la Renta","status":1},{"procedureId":4,"procedureName":"PRESTAMO PERSONAL","status":1},{"procedureId":2,"procedureName":"Poder Amplísimo","status":1},{"procedureId":1,"procedureName":"Poder Especial","status":1},{"procedureId":7,"procedureName":"Poder Gral Pleitos y Cobranzas, Admon y Laboral","status":1},{"procedureId":3,"procedureName":"Protocolización","status":1},{"procedureId":11,"procedureName":"RATIFICACION","status":2},{"procedureId":12,"procedureName":"RATIFICACION","status":1},{"procedureId":10,"procedureName":"RECTIFICACION Y SUBDIVISION","status":1},{"procedureId":17,"procedureName":"Reconocimiento de adeudo","status":1},{"procedureId":19,"procedureName":"Revocación de poder","status":1},{"procedureId":5,"procedureName":"SUBDIVISIÓN Y SERVIDUMBRE","status":1},{"procedureId":9,"procedureName":"VARIOS","status":1}]
+
+
+### GET /payment-clients
+> GET /payment-clients   body: <none>
+< HTTP 200 (0.280815s)
+[{"clientId":14,"fullName":"ALM DISEÑOS EMPRESARIALES","phone":"","email":"","status":1},{"clientId":21,"fullName":"Automotores Platino S.A. de C.V.","phone":"","email":"","status":1},{"clientId":8,"fullName":"CALIDAD AGRICOLA DE OCCIDENTE S. DE P.R. DE R.L.","phone":"","email":"","status":1},{"clientId":5,"fullName":"CORPORATIVO MAXIABA S. DE R.L. DE C.V.","phone":"","email":"","status":1},{"clientId":4,"fullName":"Deisy Pérez Martínez","phone":"","email":"","status":2},{"clientId":10,"fullName":"FERMIN MATEO AMIEVA","phone":"","email":"","status":1},{"clientId":18,"fullName":"Grupo Decme S.A de C.V","phone":"","email":"","status":1},{"clientId":13,"fullName":"JESUS FABIAN DE GASPERIN CALATAYUD","phone":"","email":"","status":1},{"clientId":16,"fullName":"José Álvarez Rocha","phone":"","email":"","status":1},{"clientId":17,"fullName":"Juan Alberto Tress Moreno","phone":"","email":"","status":1},{"clientId":11,"fullName":"JUAN CARLOS VELAZQUEZ FEITO","phone":"","email":"","status":2},{"clientId":20,"fullName":"Juan Carlos Velázquez Feito","phone":"","email":"","status":1},{"clientId":1,"fullName":"Julieta López Perdomo","phone":"","email":"","status":2},{"clientId":6,"fullName":"MEDIOS UNIDOS RADIOFONICOS S.A DE C.V.","phone":"","email":"","status":1},{"clientId":12,"fullName":"OPERACION Y LOGISTICA CARRETERA-JAIME PORRES","phone":"","email":"","status":1},{"clientId":7,"fullName":"PRODUCTORES DE AGUACATE DE MICHOACAN S. DE P.R. DE R.L. ","phone":"","email":"","status":1},{"clientId":3,"fullName":"Productos Agrícolas y Forestales RRR","phone":"","email":"","status":2},{"clientId":22,"fullName":"Samurai Motors S. de R.L. de C.V.","phone":"","email":"","status":1},{"clientId":19,"fullName":"Sara Suazo Ubaldo","phone":"","email":"","status":1},{"clientId":9,"fullNa
+
+### GET /notary
+> GET /notary   body: <none>
+< HTTP 200 (0.404532s)
+{"id":1,"name":"NOTARIA 24","notaryName":"LIC. CARLOS JAVIER LIMON SANCHEZ","city":"CORDOBA, VERACRUZ","address":"AVENIDA 1 ESQ. CALLE 12 NO. 1200","phone":"71-7-89-64","rfc":"LISC801013AW2","hasLogo":true,"status":1}
+
+
+### GET /deeds?page=1
+> GET /deeds?page=1   body: <none>
+< HTTP 200 (0.532168s)
+{"data":[{"id":19477,"deedNumber":"39734","book":"750","deedDate":"2026-10-30","actName":"Testamento Publico Abierto","deedTypeName":"Actuales","isFinished":false},{"id":19473,"deedNumber":"39733","book":"750","deedDate":"2026-10-30","actName":"Ratificacion","deedTypeName":"Actuales","isFinished":false},{"id":19472,"deedNumber":"39731","book":"750","deedDate":"2026-10-30","actName":"Ratificacion","deedTypeName":"Actuales","isFinished":false},{"id":19471,"deedNumber":"39730","book":"750","deedDate":"2026-10-30","actName":"Testamento Publico Abierto","deedTypeName":"Actuales","isFinished":false},{"id":19475,"deedNumber":"39729","book":"750","deedDate":"2026-10-30","actName":"Testamento Publico Abierto","deedTypeName":"Actuales","isFinished":false},{"id":19476,"deedNumber":"39728","book":"749","deedDate":"2026-10-30","actName":"Testamento Publico Abierto","deedTypeName":"Actuales","isFinished":false},{"id":19469,"deedNumber":"39719","book":"749","deedDate":"2026-10-29","actName":"poder general para pleitos y cobranzas, actos de administracion y de dominio","deedTypeName":"Actuales","isFinished":false},{"id":19465,"deedNumber":"39701","book":"749","deedDate":"2026-10-28","actName":"Cancelacion de hipoteca","deedTypeName":"Actuales","isFinished":false},{"id":19466,"deedNumber":"39693","book":"749","deedDate":"2026-10-27","actName":"Testamento Publico Abierto","deedTypeName":"Actuales","isFinished":false},{"id":19456,"deedNumber":"39685","book":"749","deedDate":"2026-10-26","actName":"poder general para pleitos y cobranzas, actos de administracion y de dominio","deedTypeName":"Actuales","isFinished":false},{"id":19462,"deedNumber":"39675","book":"749","deedDate":"2026-10-24","actName":"Ratificacion","deedTypeName":"Actuales","isFinished":false},{"id":19448,"deedNumber":"39647
+
+### login existing user devrob w/o pwd -> 401 shape
+> POST /auth/login   body: {"username":"devrob","password":"wrong"}
+< HTTP 401 (0.667812s)
+{"error":"Invalid credentials"}
+
+

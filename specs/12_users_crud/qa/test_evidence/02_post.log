@@ -1,0 +1,450 @@
+### POST full, access unordered+dups
+> POST /users   body: @/tmp/qa12/b_maria.json
+< HTTP 201 (1.910636s)
+{"id":13,"username":"maria.lopez","firstName":"María","paternalLastName":"López","maternalLastName":"García","access":["ESC","PAG"],"status":1,"lastAccess":null}
+
+
+### GET new user
+> GET /users/13   body: <none>
+< HTTP 200 (1.402734s)
+{"id":13,"username":"maria.lopez","firstName":"María","paternalLastName":"López","maternalLastName":"García","access":["ESC","PAG"],"status":1,"lastAccess":null}
+
+
+### POST minimal (no maternal/status)
+> POST /users   body: {"username":"min.user","password":"12345678","firstName":"Min","paternalLastName":"User","access":["PAG"]}
+< HTTP 201 (0.404743s)
+{"id":14,"username":"min.user","firstName":"Min","paternalLastName":"User","maternalLastName":"","access":["PAG"],"status":1,"lastAccess":null}
+
+
+### POST with status 2
+> POST /users   body: {"username":"inactive.user","password":"12345678","firstName":"In","paternalLastName":"Active","access":["ESC"],"status":2}
+< HTTP 201 (1.418383s)
+{"id":15,"username":"inactive.user","firstName":"In","paternalLastName":"Active","maternalLastName":"","access":["ESC"],"status":2,"lastAccess":null}
+
+
+### POST ignores notaryId/id/lastAccess in body
+> POST /users   body: {"username":"tenant.test","password":"12345678","firstName":"T","paternalLastName":"T","access":["ESC"],"notaryId":3,"id":999,"lastAccess":"2020-01-01T00:00:00","contrasenia":"x","password_hash":"y"}
+< HTTP 201 (0.300302s)
+{"id":16,"username":"tenant.test","firstName":"T","paternalLastName":"T","maternalLastName":"","access":["ESC"],"status":1,"lastAccess":null}
+
+
+### login new user maria.lopez
+> POST /auth/login   body: {"username":"maria.lopez","password":"SecurePass123"}
+< HTTP 200 (1.588021s)
+{"accessToken":"<JWT-redacted>","refreshToken":"<JWT-redacted>","expiresIn":3600,"tokenType":"Bearer"}
+
+
+### login wrong case Maria.Lopez
+> POST /auth/login   body: {"username":"Maria.Lopez","password":"SecurePass123"}
+< HTTP 401 (0.180937s)
+{"error":"Invalid credentials"}
+
+
+### login wrong password
+> POST /auth/login   body: {"username":"maria.lopez","password":"WrongPass123"}
+< HTTP 401 (1.767876s)
+{"error":"Invalid credentials"}
+
+
+### dup exact
+> POST /users   body: {"username":"maria.lopez","password":"SecurePass123","firstName":"Maria","paternalLastName":"Lopez","access":["ESC","PAG"]}
+< HTTP 409 (0.318313s)
+{"error":"Username already exists"}
+
+
+### dup case-insens Maria.Lopez
+> POST /users   body: {"username":"Maria.Lopez","password":"SecurePass123","firstName":"Maria","paternalLastName":"Lopez","access":["ESC","PAG"]}
+< HTTP 409 (0.643809s)
+{"error":"Username already exists"}
+
+
+### dup vs legacy 'devrob' (case: DEVROB)
+> POST /users   body: {"username":"DEVROB","password":"SecurePass123","firstName":"Maria","paternalLastName":"Lopez","access":["ESC","PAG"]}
+< HTTP 409 (0.235856s)
+{"error":"Username already exists"}
+
+
+### dup cross-notary: n3 token, username of n1 user
+> POST /users   body: {"username":"maria.lopez","password":"SecurePass123","firstName":"Maria","paternalLastName":"Lopez","access":["ESC","PAG"]}
+< HTTP 409 (0.180171s)
+{"error":"Username already exists"}
+
+
+### dup cross-notary: n1 token, username of n3 user
+> POST /users   body: {"username":"devrob15","password":"SecurePass123","firstName":"Maria","paternalLastName":"Lopez","access":["ESC","PAG"]}
+< HTTP 409 (0.344660s)
+{"error":"Username already exists"}
+
+
+### username 'ab'
+> POST /users   body: {"username":"ab","password":"SecurePass123","firstName":"Maria","paternalLastName":"Lopez","access":["ESC","PAG"]}
+< HTTP 400 (0.150325s)
+{"error":"Validation failed","errors":{"username":"Username must be 3 to 20 characters (letters, digits, . or _)"}}
+
+
+### username 'abcdefghijklmnopqrstu'
+> POST /users   body: {"username":"abcdefghijklmnopqrstu","password":"SecurePass123","firstName":"Maria","paternalLastName":"Lopez","access":["ESC","PAG"]}
+< HTTP 400 (1.520077s)
+{"error":"Validation failed","errors":{"username":"Username must be 3 to 20 characters (letters, digits, . or _)"}}
+
+
+### username 'FANNY RECEPCION'
+> POST /users   body: {"username":"FANNY RECEPCION","password":"SecurePass123","firstName":"Maria","paternalLastName":"Lopez","access":["ESC","PAG"]}
+< HTTP 400 (0.449860s)
+{"error":"Validation failed","errors":{"username":"Username must be 3 to 20 characters (letters, digits, . or _)"}}
+
+
+### username 'a-b-c'
+> POST /users   body: {"username":"a-b-c","password":"SecurePass123","firstName":"Maria","paternalLastName":"Lopez","access":["ESC","PAG"]}
+< HTTP 400 (0.672381s)
+{"error":"Validation failed","errors":{"username":"Username must be 3 to 20 characters (letters, digits, . or _)"}}
+
+
+### username ' abc'
+> POST /users   body: {"username":" abc","password":"SecurePass123","firstName":"Maria","paternalLastName":"Lopez","access":["ESC","PAG"]}
+< HTTP 400 (0.140739s)
+{"error":"Validation failed","errors":{"username":"Username must be 3 to 20 characters (letters, digits, . or _)"}}
+
+
+### username 'abc '
+> POST /users   body: {"username":"abc ","password":"SecurePass123","firstName":"Maria","paternalLastName":"Lopez","access":["ESC","PAG"]}
+< HTTP 400 (0.329422s)
+{"error":"Validation failed","errors":{"username":"Username must be 3 to 20 characters (letters, digits, . or _)"}}
+
+
+### username 'abc\n'
+> POST /users   body: {"username":"abc\n","password":"SecurePass123","firstName":"Maria","paternalLastName":"Lopez","access":["ESC","PAG"]}
+< HTTP 400 (0.142461s)
+{"error":"Validation failed","errors":{"username":"Username must be 3 to 20 characters (letters, digits, . or _)"}}
+
+
+### username 'a@b.com'
+> POST /users   body: {"username":"a@b.com","password":"SecurePass123","firstName":"Maria","paternalLastName":"Lopez","access":["ESC","PAG"]}
+< HTTP 400 (1.414058s)
+{"error":"Validation failed","errors":{"username":"Username must be 3 to 20 characters (letters, digits, . or _)"}}
+
+
+### username 20 chars ok
+> POST /users   body: {"username":"abcdefghij0123456789","password":"SecurePass123","firstName":"Maria","paternalLastName":"Lopez","access":["ESC","PAG"]}
+< HTTP 201 (0.507927s)
+{"id":17,"username":"abcdefghij0123456789","firstName":"Maria","paternalLastName":"Lopez","maternalLastName":"","access":["ESC","PAG"],"status":1,"lastAccess":null}
+
+
+### username with accent (UTF-8 body file)
+> POST /users   body: @/tmp/qa12/b_utf8user.json
+< HTTP 400 (0.644563s)
+{"error":"Validation failed","errors":{"username":"Username must be 3 to 20 characters (letters, digits, . or _)"}}
+
+
+### username 3 chars a_b ok
+> POST /users   body: {"username":"a_b","password":"SecurePass123","firstName":"Maria","paternalLastName":"Lopez","access":["ESC","PAG"]}
+< HTTP 201 (0.304953s)
+{"id":18,"username":"a_b","firstName":"Maria","paternalLastName":"Lopez","maternalLastName":"","access":["ESC","PAG"],"status":1,"lastAccess":null}
+
+
+### username number
+> POST /users   body: {"username":123,"password":"SecurePass123","firstName":"Maria","paternalLastName":"Lopez","access":["ESC","PAG"]}
+< HTTP 400 (0.092438s)
+{"error":"Validation failed","errors":{"username":"Username must be a string"}}
+
+
+### username null
+> POST /users   body: {"username":null,"password":"SecurePass123","firstName":"Maria","paternalLastName":"Lopez","access":["ESC","PAG"]}
+< HTTP 400 (0.174863s)
+{"error":"Validation failed","errors":{"username":"Username must be a string"}}
+
+
+### username array
+> POST /users   body: {"username":["x"],"password":"SecurePass123","firstName":"Maria","paternalLastName":"Lopez","access":["ESC","PAG"]}
+< HTTP 400 (0.137811s)
+{"error":"Validation failed","errors":{"username":"Username must be a string"}}
+
+
+### username missing
+> POST /users   body: {"password":"SecurePass123","firstName":"Maria","paternalLastName":"Lopez","access":["ESC","PAG"]}
+< HTTP 400 (0.682112s)
+{"error":"Validation failed","errors":{"username":"Username is required"}}
+
+
+### password 7 chars
+> POST /users   body: {"username":"val.test","password":"1234567","firstName":"A","paternalLastName":"B","access":["ESC"]}
+< HTTP 400 (0.098622s)
+{"error":"Validation failed","errors":{"password":"Password must be at least 8 characters"}}
+
+
+### password 73 bytes
+> POST /users   body: {"username":"val.test","password":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","firstName":"A","paternalLastName":"B","access":["ESC"]}
+< HTTP 400 (0.141660s)
+{"error":"Validation failed","errors":{"password":"Password must not exceed 72 bytes"}}
+
+
+### password NUL byte
+> POST /users   body: {"username":"val.test","password":"abcd\u0000efgh","firstName":"A","paternalLastName":"B","access":["ESC"]}
+< HTTP 400 (0.240843s)
+{"error":"Validation failed","errors":{"password":"Password contains invalid characters"}}
+
+
+### password number
+> POST /users   body: {"username":"val.test","password":12345678,"firstName":"A","paternalLastName":"B","access":["ESC"]}
+< HTTP 400 (0.643061s)
+{"error":"Validation failed","errors":{"password":"Password must be a string"}}
+
+
+### password null
+> POST /users   body: {"username":"val.test","password":null,"firstName":"A","paternalLastName":"B","access":["ESC"]}
+< HTTP 400 (0.121084s)
+{"error":"Validation failed","errors":{"password":"Password must be a string"}}
+
+
+### password missing
+> POST /users   body: {"username":"val.test","firstName":"A","paternalLastName":"B","access":["ESC"]}
+< HTTP 400 (0.113772s)
+{"error":"Validation failed","errors":{"password":"Password is required"}}
+
+
+### password 72 bytes ok
+> POST /users   body: {"username":"pw72","password":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","firstName":"A","paternalLastName":"B","access":["ESC"]}
+< HTTP 201 (0.316643s)
+{"id":19,"username":"pw72","firstName":"A","paternalLastName":"B","maternalLastName":"","access":["ESC"],"status":1,"lastAccess":null}
+
+
+### password 8 spaces ok
+> POST /users   body: {"username":"pwspaces","password":"        ","firstName":"A","paternalLastName":"B","access":["ESC"]}
+< HTTP 201 (0.326002s)
+{"id":20,"username":"pwspaces","firstName":"A","paternalLastName":"B","maternalLastName":"","access":["ESC"],"status":1,"lastAccess":null}
+
+
+### firstName missing
+> POST /users   body: {"username":"name.test","password":"12345678","access":["ESC"],"paternalLastName":"B"}
+< HTTP 400 (0.654833s)
+{"error":"Validation failed","errors":{"firstName":"First name is required"}}
+
+
+### paternalLastName missing
+> POST /users   body: {"username":"name.test","password":"12345678","access":["ESC"],"firstName":"A"}
+< HTTP 400 (0.178142s)
+{"error":"Validation failed","errors":{"paternalLastName":"Paternal last name is required"}}
+
+
+### firstName empty
+> POST /users   body: {"username":"name.test","password":"12345678","access":["ESC"],"firstName":"","paternalLastName":"B"}
+< HTTP 400 (0.223574s)
+{"error":"Validation failed","errors":{"firstName":"First name is required"}}
+
+
+### firstName spaces
+> POST /users   body: {"username":"name.test","password":"12345678","access":["ESC"],"firstName":"   ","paternalLastName":"B"}
+< HTTP 400 (0.174021s)
+{"error":"Validation failed","errors":{"firstName":"First name is required"}}
+
+
+### firstName number
+> POST /users   body: {"username":"name.test","password":"12345678","access":["ESC"],"firstName":5,"paternalLastName":"B"}
+< HTTP 400 (0.407018s)
+{"error":"Validation failed","errors":{"firstName":"First name must be a string"}}
+
+
+### firstName 151 chars
+> POST /users   body: {"username":"name.test","password":"12345678","access":["ESC"],"firstName":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","paternalLastName":"B"}
+< HTTP 400 (0.131786s)
+{"error":"Validation failed","errors":{"firstName":"First name must not exceed 150 characters"}}
+
+
+### firstName emoji (4-byte)
+> POST /users   body: {"username":"name.test","password":"12345678","access":["ESC"],"firstName":"Ana \ud83d\ude00","paternalLastName":"B"}
+< HTTP 400 (0.151869s)
+{"error":"Validation failed","errors":{"firstName":"First name contains unsupported characters"}}
+
+
+### maternalLastName 151
+> POST /users   body: {"username":"name.test","password":"12345678","access":["ESC"],"firstName":"A","paternalLastName":"B","maternalLastName":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+< HTTP 400 (0.161028s)
+{"error":"Validation failed","errors":{"maternalLastName":"Maternal last name must not exceed 150 characters"}}
+
+
+### maternalLastName number
+> POST /users   body: {"username":"name.test","password":"12345678","access":["ESC"],"firstName":"A","paternalLastName":"B","maternalLastName":7}
+< HTTP 400 (0.185561s)
+{"error":"Validation failed","errors":{"maternalLastName":"Maternal last name must be a string"}}
+
+
+### maternalLastName null ok
+> POST /users   body: {"username":"mat.null","password":"12345678","access":["ESC"],"firstName":"A","paternalLastName":"B","maternalLastName":null}
+< HTTP 201 (0.284401s)
+{"id":21,"username":"mat.null","firstName":"A","paternalLastName":"B","maternalLastName":"","access":["ESC"],"status":1,"lastAccess":null}
+
+
+### 150 accented chars ok
+> POST /users   body: {"username":"accent150","password":"12345678","access":["ESC"],"firstName":"\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1","paternalLastName":"B"}
+< HTTP 201 (0.839312s)
+{"id":22,"username":"accent150","firstName":"áááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááááá","paternalLastName":"B","maternalLastName":"","access":["ESC"],"status":1,"lastAccess":null}
+
+
+### name with apostrophe / SQL chars
+> POST /users   body: {"username":"sqli.name","password":"12345678","access":["ESC"],"firstName":"O'Brien\"); DROP TABLE usuarios_notaria;--","paternalLastName":"B"}
+< HTTP 201 (0.339422s)
+{"id":23,"username":"sqli.name","firstName":"O'Brien\"); DROP TABLE usuarios_notaria;--","paternalLastName":"B","maternalLastName":"","access":["ESC"],"status":1,"lastAccess":null}
+
+
+### access []
+> POST /users   body: {"username":"acc.test","password":"12345678","firstName":"A","paternalLastName":"B","access":[]}
+< HTTP 400 (0.196769s)
+{"error":"Validation failed","errors":{"access":"At least one access code is required"}}
+
+
+### access ["XYZ"]
+> POST /users   body: {"username":"acc.test","password":"12345678","firstName":"A","paternalLastName":"B","access":["XYZ"]}
+< HTTP 400 (0.668750s)
+{"error":"Validation failed","errors":{"access":"Access codes must be one of: ESC, PAG"}}
+
+
+### access "ESC"
+> POST /users   body: {"username":"acc.test","password":"12345678","firstName":"A","paternalLastName":"B","access":"ESC"}
+< HTTP 400 (0.171468s)
+{"error":"Validation failed","errors":{"access":"Access must be an array"}}
+
+
+### access [1]
+> POST /users   body: {"username":"acc.test","password":"12345678","firstName":"A","paternalLastName":"B","access":[1]}
+< HTTP 400 (0.207166s)
+{"error":"Validation failed","errors":{"access":"Access codes must be one of: ESC, PAG"}}
+
+
+### access {"a":"ESC"}
+> POST /users   body: {"username":"acc.test","password":"12345678","firstName":"A","paternalLastName":"B","access":{"a":"ESC"}}
+< HTTP 400 (0.178746s)
+{"error":"Validation failed","errors":{"access":"Access must be an array"}}
+
+
+### access null
+> POST /users   body: {"username":"acc.test","password":"12345678","firstName":"A","paternalLastName":"B","access":null}
+< HTTP 400 (0.683843s)
+{"error":"Validation failed","errors":{"access":"Access must be an array"}}
+
+
+### access ["esc"]
+> POST /users   body: {"username":"acc.test","password":"12345678","firstName":"A","paternalLastName":"B","access":["esc"]}
+< HTTP 400 (0.184606s)
+{"error":"Validation failed","errors":{"access":"Access codes must be one of: ESC, PAG"}}
+
+
+### access ["ESC","XYZ"]
+> POST /users   body: {"username":"acc.test","password":"12345678","firstName":"A","paternalLastName":"B","access":["ESC","XYZ"]}
+< HTTP 400 (0.294955s)
+{"error":"Validation failed","errors":{"access":"Access codes must be one of: ESC, PAG"}}
+
+
+### access [null]
+> POST /users   body: {"username":"acc.test","password":"12345678","firstName":"A","paternalLastName":"B","access":[null]}
+< HTTP 400 (0.168415s)
+{"error":"Validation failed","errors":{"access":"Access codes must be one of: ESC, PAG"}}
+
+
+### access [["ESC"]]
+> POST /users   body: {"username":"acc.test","password":"12345678","firstName":"A","paternalLastName":"B","access":[["ESC"]]}
+< HTTP 400 (0.634099s)
+{"error":"Validation failed","errors":{"access":"Access codes must be one of: ESC, PAG"}}
+
+
+### access true
+> POST /users   body: {"username":"acc.test","password":"12345678","firstName":"A","paternalLastName":"B","access":true}
+< HTTP 400 (0.145429s)
+{"error":"Validation failed","errors":{"access":"Access must be an array"}}
+
+
+### access {"0":"ESC"}
+> POST /users   body: {"username":"acc.test","password":"12345678","firstName":"A","paternalLastName":"B","access":{"0":"ESC"}}
+< HTTP 201 (0.433051s)
+{"id":24,"username":"acc.test","firstName":"A","paternalLastName":"B","maternalLastName":"","access":["ESC"],"status":1,"lastAccess":null}
+
+
+### access missing
+> POST /users   body: {"username":"acc.test","password":"12345678","firstName":"A","paternalLastName":"B"}
+< HTTP 400 (0.663950s)
+{"error":"Validation failed","errors":{"access":"Access is required"}}
+
+
+### access [PAG] only ok
+> POST /users   body: {"username":"pag.only","password":"12345678","firstName":"A","paternalLastName":"B","access":["PAG"]}
+< HTTP 201 (0.309524s)
+{"id":25,"username":"pag.only","firstName":"A","paternalLastName":"B","maternalLastName":"","access":["PAG"],"status":1,"lastAccess":null}
+
+
+### status 0
+> POST /users   body: {"username":"st.test","password":"12345678","firstName":"A","paternalLastName":"B","access":["ESC"],"status":0}
+< HTTP 400 (0.206309s)
+{"error":"Validation failed","errors":{"status":"Status must be 1 or 2"}}
+
+
+### status 3
+> POST /users   body: {"username":"st.test","password":"12345678","firstName":"A","paternalLastName":"B","access":["ESC"],"status":3}
+< HTTP 400 (0.172591s)
+{"error":"Validation failed","errors":{"status":"Status must be 1 or 2"}}
+
+
+### status "1"
+> POST /users   body: {"username":"st.test","password":"12345678","firstName":"A","paternalLastName":"B","access":["ESC"],"status":"1"}
+< HTTP 400 (0.717360s)
+{"error":"Validation failed","errors":{"status":"Status must be 1 or 2"}}
+
+
+### status true
+> POST /users   body: {"username":"st.test","password":"12345678","firstName":"A","paternalLastName":"B","access":["ESC"],"status":true}
+< HTTP 400 (0.175512s)
+{"error":"Validation failed","errors":{"status":"Status must be 1 or 2"}}
+
+
+### status 1.0
+> POST /users   body: {"username":"st.test","password":"12345678","firstName":"A","paternalLastName":"B","access":["ESC"],"status":1.0}
+< HTTP 400 (0.192189s)
+{"error":"Validation failed","errors":{"status":"Status must be 1 or 2"}}
+
+
+### status null
+> POST /users   body: {"username":"st.test","password":"12345678","firstName":"A","paternalLastName":"B","access":["ESC"],"status":null}
+< HTTP 400 (0.166506s)
+{"error":"Validation failed","errors":{"status":"Status must be 1 or 2"}}
+
+
+### status []
+> POST /users   body: {"username":"st.test","password":"12345678","firstName":"A","paternalLastName":"B","access":["ESC"],"status":[]}
+< HTTP 400 (0.642732s)
+{"error":"Validation failed","errors":{"status":"Status must be 1 or 2"}}
+
+
+### status -1
+> POST /users   body: {"username":"st.test","password":"12345678","firstName":"A","paternalLastName":"B","access":["ESC"],"status":-1}
+< HTTP 400 (0.119626s)
+{"error":"Validation failed","errors":{"status":"Status must be 1 or 2"}}
+
+
+### empty body
+> POST /users   body: <none>
+< HTTP 400 (0.137088s)
+{"error":"Validation failed","errors":{"username":"Username is required","password":"Password is required","firstName":"First name is required","paternalLastName":"Paternal last name is required","access":"Access is required"}}
+
+
+### invalid JSON
+> POST /users   body: {bad json
+< HTTP 400 (0.130460s)
+{"error":"Validation failed","errors":{"username":"Username is required","password":"Password is required","firstName":"First name is required","paternalLastName":"Paternal last name is required","access":"Access is required"}}
+
+
+### empty object
+> POST /users   body: {}
+< HTTP 400 (0.682267s)
+{"error":"Validation failed","errors":{"username":"Username is required","password":"Password is required","firstName":"First name is required","paternalLastName":"Paternal last name is required","access":"Access is required"}}
+
+
+### JSON array body
+> POST /users   body: []
+< HTTP 400 (0.140807s)
+{"error":"Validation failed","errors":{"username":"Username is required","password":"Password is required","firstName":"First name is required","paternalLastName":"Paternal last name is required","access":"Access is required"}}
+
+
+### JSON scalar body
+> POST /users   body: "x"
+< HTTP 500 (0.072364s)
+{"error":"Internal Server Error","message":"App\\Core\\Http\\Request::__construct(): Argument #4 ($body) must be of type array, string given, called in /var/www/html/src/Core/Http/Request.php on line 58"}
+
+

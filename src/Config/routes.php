@@ -13,6 +13,7 @@ use App\Module\PaymentClient\Controller\PaymentClientController;
 use App\Module\PaymentProcedure\Controller\PaymentProcedureController;
 use App\Module\PaymentProcedureTax\Controller\PaymentProcedureTaxController;
 use App\Module\PaymentTransaction\Controller\PaymentTransactionController;
+use App\Module\User\Controller\UserController;
 use App\Module\Notary\Controller\NotaryController;
 use App\Module\Deed\Controller\DeedController;
 
@@ -86,6 +87,12 @@ $router->get('/api/v3/payment-transactions/{id}', [PaymentTransactionController:
 $router->post('/api/v3/payment-transactions', [PaymentTransactionController::class, 'store'])->withMiddleware('auth');
 $router->put('/api/v3/payment-transactions/{id}', [PaymentTransactionController::class, 'update'])->withMiddleware('auth');
 
+// Users routes (protected)
+$router->get('/api/v3/users', [UserController::class, 'index'])->withMiddleware('auth');
+$router->get('/api/v3/users/{id}', [UserController::class, 'show'])->withMiddleware('auth');
+$router->post('/api/v3/users', [UserController::class, 'store'])->withMiddleware('auth');
+$router->put('/api/v3/users/{id}', [UserController::class, 'update'])->withMiddleware('auth');
+
 // Notary profile routes (protected)
 $router->get('/api/v3/notary', [NotaryController::class, 'show'])->withMiddleware('auth');
 $router->post('/api/v3/notary', [NotaryController::class, 'update'])->withMiddleware('auth');
@@ -120,11 +127,5 @@ $router->get('/api/v3/deeds', [DeedController::class, 'index'])->withMiddleware(
 //     $router->get('/subdivisions/{id}', [SubdivisionController::class, 'show']);
 //     $router->post('/subdivisions', [SubdivisionController::class, 'store']);
 //     $router->put('/subdivisions/{id}', [SubdivisionController::class, 'update']);
-//
-//     // Users
-//     $router->get('/users', [UserController::class, 'index']);
-//     $router->get('/users/{id}', [UserController::class, 'show']);
-//     $router->post('/users', [UserController::class, 'store']);
-//     $router->put('/users/{id}', [UserController::class, 'update']);
 //
 // });
