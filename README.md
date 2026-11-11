@@ -256,6 +256,21 @@ Totals are computed by the server. If the procedure has configured taxes, `taxes
 - POSTing a previously disabled tax re-enables it (201). An already active tax returns 409; an inactive tax or procedure returns 422.
 - Bulk is all-or-nothing (max 50 items); item errors return 400 with keys like `taxes.N.taxId`.
 
+### Users
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v3/users` | List the notary's users, ordered by last name (`?status=1\|2`; no pagination) |
+| GET | `/api/v3/users/{id}` | Get user by ID |
+| POST | `/api/v3/users` | Create user (201, returns the user) |
+| PUT | `/api/v3/users/{id}` | Partial update; deactivate with `status: 2` (200, returns the user) |
+
+- `access` is an array of module codes: `ESC` (deeds) and `PAG` (payments); at least one is required.
+- `username` is **globally unique** (all notaries) and checked case-insensitively; 3–20 characters (letters, digits, `.`, `_`). On `PUT` the format is only validated when the username changes, so legacy usernames stay editable.
+- `password` (min 8 characters, max 72 bytes) is stored with bcrypt and never returned. It cannot be changed through `PUT` (400).
+- A user cannot deactivate their own account (403). Legacy status `0` is exposed as `status: 2`.
+- There is no DELETE endpoint; deactivate with `status: 2`. A deactivated user cannot log in or refresh, but an already issued access token stays valid until it expires.
+
 ## API Conventions
 
 - All field names are in **English** and **camelCase**
@@ -270,6 +285,15 @@ docker-compose exec api ./vendor/bin/phpunit
 ```
 
 ## Changelog
+
+### 2026-11-11 - Feature: Users CRUD
+- New `User` module to manage the notary's users (`usuarios_notaria`); multi-tenant, passwords hashed with bcrypt (cost 10) and never exposed
+- Globally unique, case-insensitive username; self-deactivation blocked (403); legacy usernames and legacy status `0` handled
+- `POST` returns 201 with the user and `PUT` returns 200 with the user
+- Requires DB migration `add_unique_username_to_usuarios_notaria` (unique `usuario` + `(id_notaria, id_estatus)` index). Run PRE-CHECK A (duplicate usernames) before applying in production
+- Endpoints added:
+  - `GET /api/v3/users`, `GET /api/v3/users/{id}`
+  - `POST /api/v3/users`, `PUT /api/v3/users/{id}`
 
 ### 2026-11-11 - Feature: Payment Transactions CRUD
 - New `PaymentTransaction` module and `Core\Database\TransactionManager` for atomic multi-table writes
