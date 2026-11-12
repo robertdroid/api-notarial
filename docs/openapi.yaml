@@ -66,7 +66,28 @@ tags:
   - name: Notary
     description: Notary profile management (current user's notary)
   - name: Deeds
-    description: Deeds listing and search (current user's notary)
+    description: |
+      Deeds of the current user's notary: listing, detail, create, update and finish,
+      plus two sub-resources: participants and registrations.
+
+      - **`deedNumber` is NOT unique.** A deed with several properties is stored as several rows with the same
+        number, so creating or updating a deed with an existing number is allowed.
+      - **`PUT /deeds/{id}` is a full replacement** of the editable fields: optional fields that are omitted
+        are cleared (`null`). Send the whole form. It ignores `participants`, `registrations`, `isFinished`
+        and any unknown key, and it **never** changes the finished flag.
+      - **`POST /deeds/{id}/finish` is irreversible** and not idempotent: finishing a finished deed returns `409`.
+        A finished deed can still be edited (including its participants and registrations).
+      - **Atomicity:** every write runs in a transaction. `POST /deeds` creates the deed, its participants and
+        its registrations together or not at all.
+      - **Audit:** every write on a deed or on its participants/registrations updates the deed's
+        `modifiedBy` and `modifiedAt`.
+      - **Deed type rules:** a deed type limits how many registrations a deed may have (`max_inscripciones`,
+        0 = no limit) and whether its deeds may have a subdivision. They are enforced with `422` errors.
+        On `PUT`, catalog rules only apply to what changes, so legacy deeds that point to inactive catalogs
+        can still be edited.
+      - **Errors carry a stable `code`.** Clients must branch on `code`, never on the text of `error`.
+      - Participant and registration ids may change if the deed is edited in the legacy system:
+        reload the deed before editing one of them.
 
 paths:
   /health:
@@ -2049,6 +2070,394 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+    post:
+      tags:
+        - Deeds
+      summary: Create deed
+      description: |
+        Creates a deed (not finished) with optional participants and registrations in a single atomic
+        operation. `deedNumber` is **not** unique. Sets `modifiedBy` and `modifiedAt`.
+
+        **Validation order:** body (400) → act → deed type → subdivision → subdivision allowed by the deed type
+        → registrations within the deed type limit (all 422).
+      operationId: createDeed
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDeedRequest'
+      responses:
+        '201':
+          description: Deed created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deed'
+        '400':
+          $ref: '#/components/responses/DeedValidationFailed'
+        '401':
+          $ref: '#/components/responses/DeedUnauthorized'
+        '422':
+          $ref: '#/components/responses/DeedRuleViolation'
+
+  /deeds/{id}:
+    get:
+      tags:
+        - Deeds
+      summary: Get deed by ID
+      description: |
+        Returns the deed with its act, deed type, subdivision, active participants, registrations and the
+        user who last modified it. Zero dates (`0000-00-00`) of the legacy system are returned as `null`.
+
+        Returns 404 if the deed doesn't exist or belongs to a different notary.
+      operationId: getDeed
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeedId'
+      responses:
+        '200':
+          description: Deed details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deed'
+        '400':
+          $ref: '#/components/responses/DeedInvalidId'
+        '401':
+          $ref: '#/components/responses/DeedUnauthorized'
+        '404':
+          $ref: '#/components/responses/DeedNotFoundError'
+    put:
+      tags:
+        - Deeds
+      summary: Update deed
+      description: |
+        **Full replacement** of the editable fields: optional fields that are omitted are cleared.
+        `participants`, `registrations`, `isFinished` and unknown keys are ignored; the finished flag is
+        never modified (use `POST /deeds/{id}/finish`). Works on finished deeds too.
+        Updates `modifiedBy` and `modifiedAt`.
+
+        **Catalog rules apply only to what changes:**
+        - `actId` changed: the act must exist in the notary and be active
+        - `deedTypeId` changed: the type must exist and be active, and the deed's current registrations
+          must not exceed its `max_inscripciones`
+        - `subdivisionId` changed (not `null`): the subdivision must exist and be active
+        - type or subdivision changed: the deed type must allow subdivisions if `subdivisionId` is not `null`
+      operationId: updateDeed
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeedId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDeedRequest'
+      responses:
+        '200':
+          description: Updated deed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deed'
+        '400':
+          $ref: '#/components/responses/DeedValidationFailed'
+        '401':
+          $ref: '#/components/responses/DeedUnauthorized'
+        '404':
+          $ref: '#/components/responses/DeedNotFoundError'
+        '422':
+          $ref: '#/components/responses/DeedRuleViolation'
+
+  /deeds/{id}/finish:
+    post:
+      tags:
+        - Deeds
+      summary: Finish deed
+      description: |
+        Marks the deed as finished. **Irreversible**: there is no endpoint to reopen a deed.
+        Updates `modifiedBy` and `modifiedAt`. Finishing a finished deed returns `409`.
+      operationId: finishDeed
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeedId'
+      responses:
+        '200':
+          description: The finished deed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deed'
+        '400':
+          $ref: '#/components/responses/DeedInvalidId'
+        '401':
+          $ref: '#/components/responses/DeedUnauthorized'
+        '404':
+          $ref: '#/components/responses/DeedNotFoundError'
+        '409':
+          description: The deed is already finished
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeedError'
+              example:
+                error: "Deed is already finished"
+                code: "deed_already_finished"
+
+  /deeds/{id}/participants:
+    get:
+      tags:
+        - Deeds
+      summary: List active participants of a deed
+      description: Returns only the active participants (inactive ones are never listed), ordered by id.
+      operationId: listDeedParticipants
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeedId'
+      responses:
+        '200':
+          description: Active participants
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Participant'
+        '400':
+          $ref: '#/components/responses/DeedInvalidId'
+        '401':
+          $ref: '#/components/responses/DeedUnauthorized'
+        '404':
+          $ref: '#/components/responses/DeedNotFoundError'
+    post:
+      tags:
+        - Deeds
+      summary: Add a participant to a deed
+      description: Creates an active participant. Updates the deed's `modifiedBy` and `modifiedAt`.
+      operationId: createDeedParticipant
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeedId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipantInput'
+      responses:
+        '201':
+          description: Participant created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Participant'
+        '400':
+          $ref: '#/components/responses/DeedValidationFailed'
+        '401':
+          $ref: '#/components/responses/DeedUnauthorized'
+        '404':
+          $ref: '#/components/responses/DeedNotFoundError'
+
+  /deeds/{id}/participants/{participantId}:
+    put:
+      tags:
+        - Deeds
+      summary: Update a participant (full replacement)
+      description: |
+        Replaces `name` and `typeId`. Updates the deed's `modifiedBy` and `modifiedAt`.
+        An inactive participant cannot be updated (`409`).
+      operationId: updateDeedParticipant
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeedId'
+        - $ref: '#/components/parameters/ParticipantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipantInput'
+      responses:
+        '200':
+          description: Updated participant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Participant'
+        '400':
+          $ref: '#/components/responses/DeedValidationFailed'
+        '401':
+          $ref: '#/components/responses/DeedUnauthorized'
+        '404':
+          $ref: '#/components/responses/ParticipantNotFoundError'
+        '409':
+          description: The participant is inactive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeedError'
+              example:
+                error: "Participant is inactive"
+                code: "participant_inactive"
+    delete:
+      tags:
+        - Deeds
+      summary: Remove a participant (soft delete)
+      description: |
+        The participant stays in the database as inactive (`status = 2`) and is no longer listed.
+        Updates the deed's `modifiedBy` and `modifiedAt`.
+      operationId: deleteDeedParticipant
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeedId'
+        - $ref: '#/components/parameters/ParticipantId'
+      responses:
+        '204':
+          description: Participant deactivated (no body)
+        '400':
+          $ref: '#/components/responses/DeedInvalidId'
+        '401':
+          $ref: '#/components/responses/DeedUnauthorized'
+        '404':
+          $ref: '#/components/responses/ParticipantNotFoundError'
+        '409':
+          description: The participant is already inactive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeedError'
+              example:
+                error: "Participant is already inactive"
+                code: "participant_already_inactive"
+
+  /deeds/{id}/registrations:
+    get:
+      tags:
+        - Deeds
+      summary: List registrations of a deed
+      description: Returns all the registrations of the deed, ordered by id.
+      operationId: listDeedRegistrations
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeedId'
+      responses:
+        '200':
+          description: Registrations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Registration'
+        '400':
+          $ref: '#/components/responses/DeedInvalidId'
+        '401':
+          $ref: '#/components/responses/DeedUnauthorized'
+        '404':
+          $ref: '#/components/responses/DeedNotFoundError'
+    post:
+      tags:
+        - Deeds
+      summary: Add a registration to a deed
+      description: |
+        Creates a registration. The deed must stay within the `max_inscripciones` of its **current** deed type
+        (even if that type is now inactive); a type with no limit (`0`) or a deleted type applies no limit.
+        Updates the deed's `modifiedBy` and `modifiedAt`.
+
+        In `registration_limit_exceeded`, `details.currentRegistrations` is the number of registrations the
+        deed would have after the operation.
+      operationId: createDeedRegistration
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeedId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrationInput'
+      responses:
+        '201':
+          description: Registration created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Registration'
+        '400':
+          $ref: '#/components/responses/DeedValidationFailed'
+        '401':
+          $ref: '#/components/responses/DeedUnauthorized'
+        '404':
+          $ref: '#/components/responses/DeedNotFoundError'
+        '422':
+          $ref: '#/components/responses/DeedRuleViolation'
+
+  /deeds/{id}/registrations/{registrationId}:
+    put:
+      tags:
+        - Deeds
+      summary: Update a registration (full replacement)
+      description: |
+        Replaces `number`, `section`, `volume` and `date`; omitted fields are cleared, but at least one
+        must remain. There is no registration limit check. Updates the deed's `modifiedBy` and `modifiedAt`.
+      operationId: updateDeedRegistration
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeedId'
+        - $ref: '#/components/parameters/RegistrationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrationInput'
+      responses:
+        '200':
+          description: Updated registration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Registration'
+        '400':
+          $ref: '#/components/responses/DeedValidationFailed'
+        '401':
+          $ref: '#/components/responses/DeedUnauthorized'
+        '404':
+          $ref: '#/components/responses/RegistrationNotFoundError'
+    delete:
+      tags:
+        - Deeds
+      summary: Delete a registration
+      description: Physical delete (registrations have no status). Updates the deed's `modifiedBy` and `modifiedAt`.
+      operationId: deleteDeedRegistration
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeedId'
+        - $ref: '#/components/parameters/RegistrationId'
+      responses:
+        '204':
+          description: Registration deleted (no body)
+        '400':
+          $ref: '#/components/responses/DeedInvalidId'
+        '401':
+          $ref: '#/components/responses/DeedUnauthorized'
+        '404':
+          $ref: '#/components/responses/RegistrationNotFoundError'
+
   /users:
     get:
       tags:
@@ -2473,6 +2882,105 @@ components:
       description: Payment tax ID
       schema:
         type: integer
+    DeedId:
+      name: id
+      in: path
+      required: true
+      description: Deed ID
+      schema:
+        type: integer
+    ParticipantId:
+      name: participantId
+      in: path
+      required: true
+      description: Participant ID (must belong to the deed in the path)
+      schema:
+        type: integer
+    RegistrationId:
+      name: registrationId
+      in: path
+      required: true
+      description: Registration ID (must belong to the deed in the path)
+      schema:
+        type: integer
+
+  responses:
+    DeedUnauthorized:
+      description: Missing, invalid or expired token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    DeedInvalidId:
+      description: An ID in the path is not an integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DeedError'
+          example:
+            error: "Invalid ID format"
+            code: "invalid_id"
+    DeedValidationFailed:
+      description: |
+        Invalid body, or an ID in the path is not an integer (`code: invalid_id`).
+        Item errors use indexed keys such as `participants.1.typeId` or `registrations.0`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DeedError'
+          example:
+            error: "Validation failed"
+            code: "validation_failed"
+            errors:
+              deedNumber: "Deed number is required"
+              participants.1.typeId: "Invalid participant type"
+    DeedNotFoundError:
+      description: The deed doesn't exist or belongs to a different notary
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DeedError'
+          example:
+            error: "Deed not found"
+            code: "deed_not_found"
+    ParticipantNotFoundError:
+      description: |
+        The deed doesn't exist or belongs to a different notary (`deed_not_found`),
+        or the participant doesn't exist or belongs to another deed (`participant_not_found`)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DeedError'
+          example:
+            error: "Participant not found"
+            code: "participant_not_found"
+    RegistrationNotFoundError:
+      description: |
+        The deed doesn't exist or belongs to a different notary (`deed_not_found`),
+        or the registration doesn't exist or belongs to another deed (`registration_not_found`)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DeedError'
+          example:
+            error: "Registration not found"
+            code: "registration_not_found"
+    DeedRuleViolation:
+      description: |
+        A related resource is in a state that forbids the operation. Check `code`:
+        `act_unavailable`, `deed_type_unavailable`, `subdivision_unavailable`,
+        `subdivision_not_allowed` (`details.deedTypeId`) and
+        `registration_limit_exceeded` (`details.maxRegistrations`, `details.currentRegistrations`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DeedError'
+          example:
+            error: "Deed type allows at most 2 registrations"
+            code: "registration_limit_exceeded"
+            details:
+              maxRegistrations: 2
+              currentRegistrations: 3
 
   schemas:
     HealthResponse:
@@ -3780,3 +4288,310 @@ components:
           default: ""
           description: Detail comments (trimmed)
           example: "Primer pago"
+
+    # Deeds detail schemas
+    NamedReference:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          example: 5
+        name:
+          type: [string, "null"]
+          description: Name of the referenced record, or `null` when it cannot be resolved (deleted or from another notary)
+          example: "Compraventa"
+
+    Participant:
+      type: object
+      required:
+        - id
+        - name
+        - typeId
+        - type
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "María García"
+        typeId:
+          type: integer
+          enum: [1, 2]
+          description: "1 = seller, 2 = buyer. Use this value for logic."
+          example: 1
+        type:
+          type: [string, "null"]
+          description: Display label (Spanish business data) for `typeId`; `null` for an unknown type
+          enum: ["Enajenante", "Adquiriente", null]
+          example: "Enajenante"
+
+    Registration:
+      type: object
+      required:
+        - id
+        - number
+        - section
+        - volume
+        - date
+      properties:
+        id:
+          type: integer
+          example: 1
+        number:
+          type: [string, "null"]
+          example: "12345"
+        section:
+          type: [string, "null"]
+          example: "I"
+        volume:
+          type: [string, "null"]
+          example: "100"
+        date:
+          type: [string, "null"]
+          format: date
+          description: Registration date (legacy `0000-00-00` is returned as `null`)
+          example: "2024-01-20"
+
+    Deed:
+      type: object
+      required:
+        - id
+        - deedNumber
+        - book
+        - deedDate
+        - act
+        - deedType
+        - subdivision
+        - property
+        - deliveryDate
+        - deliveredBy
+        - observations
+        - isFinished
+        - participants
+        - registrations
+        - modifiedBy
+        - modifiedAt
+      properties:
+        id:
+          type: integer
+          example: 123
+        deedNumber:
+          type: string
+          description: Deed number (trimmed; free text, not unique)
+          example: "1234"
+        book:
+          type: string
+          example: "10"
+        deedDate:
+          type: [string, "null"]
+          format: date
+          example: "2024-01-15"
+        act:
+          oneOf:
+            - $ref: '#/components/schemas/NamedReference'
+            - type: "null"
+        deedType:
+          oneOf:
+            - $ref: '#/components/schemas/NamedReference'
+            - type: "null"
+        subdivision:
+          oneOf:
+            - $ref: '#/components/schemas/NamedReference'
+            - type: "null"
+          description: "`null` when the deed has no subdivision"
+        property:
+          type: [string, "null"]
+          example: "Lote 5, Manzana 3"
+        deliveryDate:
+          type: [string, "null"]
+          format: date
+          example: "2024-02-01"
+        deliveredBy:
+          type: [string, "null"]
+          example: "Juan Pérez"
+        observations:
+          type: [string, "null"]
+        isFinished:
+          type: boolean
+          description: Only `POST /deeds/{id}/finish` can set it to `true`
+          example: false
+        participants:
+          type: array
+          description: Active participants only
+          items:
+            $ref: '#/components/schemas/Participant'
+        registrations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Registration'
+        modifiedBy:
+          oneOf:
+            - $ref: '#/components/schemas/NamedReference'
+            - type: "null"
+          description: User who last wrote the deed or any of its participants/registrations
+        modifiedAt:
+          type: [string, "null"]
+          format: date-time
+          description: ISO 8601 in the America/Mexico_City timezone
+          example: "2024-01-15T10:30:00-06:00"
+
+    UpdateDeedRequest:
+      type: object
+      description: |
+        Full replacement of the editable fields (omitted optional fields are cleared).
+        `participants`, `registrations`, `isFinished` and unknown keys are ignored.
+      required:
+        - deedNumber
+        - book
+        - deedDate
+        - actId
+        - deedTypeId
+      properties:
+        deedNumber:
+          type: string
+          maxLength: 50
+          description: Required, trimmed. Not unique.
+          example: "1234"
+        book:
+          type: string
+          maxLength: 100
+          description: Required, trimmed
+          example: "10"
+        deedDate:
+          type: string
+          format: date
+          description: Real date in YYYY-MM-DD format
+          example: "2024-01-15"
+        actId:
+          type: integer
+          minimum: 1
+          description: Must exist in the notary and be active (checked on create, or on update when it changes)
+          example: 5
+        deedTypeId:
+          type: integer
+          minimum: 1
+          description: Must exist in the notary and be active (checked on create, or on update when it changes)
+          example: 3
+        subdivisionId:
+          type: [integer, "null"]
+          minimum: 1
+          description: |
+            `null` or omitted = no subdivision. Must exist and be active, and the deed type must allow
+            subdivisions (checked on create, or on update when it changes).
+          example: 2
+        property:
+          type: [string, "null"]
+          description: Up to 65535 bytes. Blank = `null`.
+          example: "Lote 5, Manzana 3"
+        deliveryDate:
+          type: [string, "null"]
+          format: date
+          example: "2024-02-01"
+        deliveredBy:
+          type: [string, "null"]
+          maxLength: 250
+          example: "Juan Pérez"
+        observations:
+          type: [string, "null"]
+          description: Up to 65535 bytes. Blank = `null`.
+
+    CreateDeedRequest:
+      allOf:
+        - $ref: '#/components/schemas/UpdateDeedRequest'
+        - type: object
+          description: The deed fields plus optional participants and registrations created in the same transaction
+          properties:
+            participants:
+              type: array
+              maxItems: 50
+              items:
+                $ref: '#/components/schemas/ParticipantInput'
+            registrations:
+              type: array
+              maxItems: 20
+              description: Must not exceed the `max_inscripciones` of the deed type (0 = no limit)
+              items:
+                $ref: '#/components/schemas/RegistrationInput'
+
+    ParticipantInput:
+      type: object
+      required:
+        - name
+        - typeId
+      properties:
+        name:
+          type: string
+          maxLength: 250
+          description: Required, trimmed. Longer names are rejected, not truncated.
+          example: "Carlos Ruiz"
+        typeId:
+          type: integer
+          enum: [1, 2]
+          description: "1 = seller (Enajenante), 2 = buyer (Adquiriente)"
+          example: 1
+
+    RegistrationInput:
+      type: object
+      description: At least one of the four fields is required
+      properties:
+        number:
+          type: [string, "null"]
+          maxLength: 100
+          example: "54321"
+        section:
+          type: [string, "null"]
+          maxLength: 100
+          example: "II"
+        volume:
+          type: [string, "null"]
+          maxLength: 100
+          example: "200"
+        date:
+          type: [string, "null"]
+          format: date
+          description: Any date is accepted (including future ones)
+          example: "2024-03-15"
+
+    DeedError:
+      type: object
+      required:
+        - error
+        - code
+      properties:
+        error:
+          type: string
+          description: Human-readable message in English. Do not branch on it.
+          example: "Deed not found"
+        code:
+          type: string
+          description: Stable identifier of the error. Branch on this value.
+          enum:
+            - invalid_id
+            - validation_failed
+            - deed_not_found
+            - participant_not_found
+            - registration_not_found
+            - deed_already_finished
+            - participant_already_inactive
+            - participant_inactive
+            - act_unavailable
+            - deed_type_unavailable
+            - subdivision_unavailable
+            - subdivision_not_allowed
+            - registration_limit_exceeded
+        errors:
+          type: object
+          description: Present with `validation_failed`. Keys are field names (`deedNumber`, `participants.1.typeId`, `registrations.0`, `registration`).
+          additionalProperties:
+            type: string
+        details:
+          type: object
+          description: |
+            Present with `subdivision_not_allowed` (`deedTypeId`) and `registration_limit_exceeded`
+            (`maxRegistrations`, `currentRegistrations`).
+          additionalProperties:
+            type: integer
