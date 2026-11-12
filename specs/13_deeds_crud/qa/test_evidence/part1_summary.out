@@ -1,0 +1,228 @@
+--- AUTH (12 routes without token)
+noauth GET /deeds/1                                              -> 401 (0.360193s)
+     PASS (401)
+noauth POST /deeds                                               -> 401 (0.022880s)
+     PASS (401)
+noauth PUT /deeds/1                                              -> 401 (0.023817s)
+     PASS (401)
+noauth POST /deeds/1/finish                                      -> 401 (0.021679s)
+     PASS (401)
+noauth GET /deeds/1/participants                                 -> 401 (0.021904s)
+     PASS (401)
+noauth POST /deeds/1/participants                                -> 401 (0.018164s)
+     PASS (401)
+noauth PUT /deeds/1/participants/1                               -> 401 (0.016289s)
+     PASS (401)
+noauth DELETE /deeds/1/participants/1                            -> 401 (0.022696s)
+     PASS (401)
+noauth GET /deeds/1/registrations                                -> 401 (0.020392s)
+     PASS (401)
+noauth POST /deeds/1/registrations                               -> 401 (0.019845s)
+     PASS (401)
+noauth PUT /deeds/1/registrations/1                              -> 401 (0.034952s)
+     PASS (401)
+noauth DELETE /deeds/1/registrations/1                           -> 401 (0.023300s)
+     PASS (401)
+bad token                                                        -> 401 (0.045136s)
+     PASS (401)
+--- GET /deeds/{id}
+GET 19478 (n1)                                                   -> 200 (0.194929s)
+     PASS (200)
+     PASS  .act|keys == ["id","name"]
+     PASS  (.participants|type) == "array"
+     PASS  (.registrations|type) == "array"
+["act","book","deedDate","deedNumber","deedType","deliveredBy","deliveryDate","id","isFinished","modifiedAt","modifiedBy","observations","participants","property","registrations","subdivision"]
+GET 1 (n3 own)                                                   -> 200 (0.155695s)
+     PASS (200)
+GET 999999 not found                                             -> 404 (0.085540s)
+     PASS (404)
+     PASS  .code == "deed_not_found"
+GET cross-tenant (n1 token, deed 8137 of n2)                     -> 404 (0.055158s)
+     PASS (404)
+     PASS  .code == "deed_not_found"
+GET cross-tenant (n2 token, deed 19478 of n1)                    -> 404 (0.076821s)
+     PASS (404)
+GET id=abc                                                       -> 400 (0.068867s)
+     PASS (400)
+     PASS  .code == "invalid_id"
+GET id=1.5                                                       -> 400 (0.050769s)
+     PASS (400)
+     PASS  .code == "invalid_id"
+GET id=0                                                         -> 404 (0.057334s)
+     PASS (404)
+GET id=-5                                                        -> 404 (0.072089s)
+     PASS (404)
+GET 3904 (other-notary act)                                      -> 200 (0.164783s)
+     PASS (200)
+     PASS  .act.name == null
+--- sentinel data
+deed m1 = 6096
+deed 0 = 9140
+deed pos = 9268
+deed zero = 7552
+frac -1                                                          -> 200 (0.197908s)
+     PASS (200)
+     PASS  .subdivision == null
+frac 0                                                           -> 200 (0.093592s)
+     PASS (200)
+     PASS  .subdivision == null
+frac >0                                                          -> 200 (0.103311s)
+     PASS (200)
+     PASS  .subdivision|type == "object"
+zero date deed                                                   -> 200 (0.077503s)
+     PASS (200)
+     PASS  .deedDate == null
+--- GET list regression
+GET /deeds list n1                                               -> 200 (0.183917s)
+     PASS (200)
+["data","pagination"]
+list with zero-date deed (14238)                                 -> 200 (0.286985s)
+     PASS (200)
+     occurrences of -0001-11-30: 0
+--- POST /deeds
+POST full (no subdivision)                                       -> 201 (0.443261s)
+     PASS (201)
+     PASS  .participants|length == 2
+     PASS  .registrations|length == 1
+     PASS  .isFinished == false
+     PASS  .participants[0].type == "Enajenante"
+     PASS  .participants[1].type == "Adquiriente"
+     PASS  .modifiedBy.id == 2
+     PASS  .subdivision == null
+     PASS  DB[SELECT terminada,id_fraccionamiento,id_usuario,id_notaria FROM escrituras WHERE id_escritura=19498] == 0	-1	2	1
+POST with subdivision (type 4 allows)                            -> 201 (0.107776s)
+     PASS (201)
+     PASS  .subdivision.id == 1
+POST minimal                                                     -> 201 (0.100059s)
+     PASS (201)
+     PASS  .participants == []
+     PASS  .registrations == []
+POST duplicate number (ADR-002 => 201)                           -> 201 (0.175902s)
+     PASS (201)
+POST body ignores notaryId/userId/isFinished                     -> 201 (0.138031s)
+     PASS (201)
+     PASS  DB[SELECT id_notaria,id_usuario,terminada FROM escrituras WHERE id_escritura=19502] == 1	2	0
+POST trim + empty optionals -> NULL                              -> 201 (0.255039s)
+     PASS (201)
+     PASS  .deedNumber == "QA13-5"
+     PASS  .book == "7"
+     PASS  .property == null
+     PASS  .deliveredBy == null
+     PASS  DB[SELECT predio IS NULL, entrego IS NULL, observaciones IS NULL FROM escrituras WHERE id_escritura=19503] == 1	1	1
+--- POST reference validations
+act inactive (169)                                               -> 422 (0.086135s)
+     PASS (422)
+     PASS  .code == "act_unavailable"
+     PASS  .error == "Act not found or inactive"
+act other notary (58)                                            -> 422 (0.073815s)
+     PASS (422)
+     PASS  .code == "act_unavailable"
+act nonexistent                                                  -> 422 (0.088532s)
+     PASS (422)
+type inactive (23)                                               -> 422 (0.124976s)
+     PASS (422)
+     PASS  .code == "deed_type_unavailable"
+type other notary (6)                                            -> 422 (0.074709s)
+     PASS (422)
+     PASS  .code == "deed_type_unavailable"
+subdivision inactive (67)                                        -> 422 (0.086301s)
+     PASS (422)
+     PASS  .code == "subdivision_unavailable"
+subdivision other notary (32)                                    -> 422 (0.089114s)
+     PASS (422)
+     PASS  .code == "subdivision_unavailable"
+subdivision not allowed by type 1                                -> 422 (0.210203s)
+     PASS (422)
+     PASS  .code == "subdivision_not_allowed"
+     PASS  .details.deedTypeId == 1
+registration limit (type 2 max 1, 2 items)                       -> 422 (0.085610s)
+     PASS (422)
+     PASS  .code == "registration_limit_exceeded"
+     PASS  .details.maxRegistrations == 1
+     PASS  .error == "Deed type allows at most 1 registrations"
+act inactive + type inactive -> act first                        -> 422 (0.090562s)
+     PASS (422)
+     PASS  .code == "act_unavailable"
+     PASS  DB[SELECT COUNT(*) FROM escrituras WHERE num_escritura='QA13-V'] == 0
+--- POST body validation (400)
+missing deedNumber                                               -> 400 (0.078706s)
+     PASS (400)
+     PASS  .code == "validation_failed"
+     PASS  .errors.deedNumber|type == "string"
+empty body {}                                                    -> 400 (0.094260s)
+     PASS (400)
+["actId","book","deedDate","deedNumber","deedTypeId"]
+deedDate="2024-02-30"                                            -> 400 (0.067953s)
+     PASS (400)
+deedDate="15/01/2024"                                            -> 400 (0.078053s)
+     PASS (400)
+deedDate=20240115                                                -> 400 (0.066237s)
+     PASS (400)
+deedDate="2024-1-5"                                              -> 400 (0.064426s)
+     PASS (400)
+deedDate=""                                                      -> 400 (0.373205s)
+     PASS (400)
+deedDate=null                                                    -> 400 (0.063372s)
+     PASS (400)
+actId string '5'                                                 -> 400 (0.064037s)
+     PASS (400)
+     PASS  .errors.actId|type == "string"
+actId 0                                                          -> 400 (0.075304s)
+     PASS (400)
+actId float 1.5                                                  -> 400 (0.067894s)
+     PASS (400)
+subdivisionId 0                                                  -> 400 (0.066353s)
+     PASS (400)
+deedNumber 50 ok                                                 -> 201 (0.133314s)
+     PASS (201)
+deedNumber 51 fail                                               -> 400 (0.100079s)
+     PASS (400)
+deedNumber 50 x n-tilde (multibyte) ok                           -> 201 (0.116988s)
+     PASS (201)
+deedNumber 51 x n-tilde (multibyte) fail                         -> 400 (0.066426s)
+     PASS (400)
+book 101 fail                                                    -> 400 (0.203612s)
+     PASS (400)
+deliveredBy 251 fail                                             -> 400 (0.079159s)
+     PASS (400)
+deliveryDate invalid                                             -> 400 (0.106894s)
+     PASS (400)
+participants as object                                           -> 400 (0.071617s)
+     PASS (400)
+participant item not object                                      -> 400 (0.070485s)
+     PASS (400)
+participant typeId 99                                            -> 400 (0.105521s)
+     PASS (400)
+     PASS  .errors["participants.1.typeId"] == "Invalid participant type"
+participant typeId=0                                             -> 400 (0.069297s)
+     PASS (400)
+participant typeId=3                                             -> 400 (0.083408s)
+     PASS (400)
+participant typeId="1"                                           -> 400 (0.104383s)
+     PASS (400)
+participant typeId=null                                          -> 400 (0.088596s)
+     PASS (400)
+participant name blank                                           -> 400 (0.065855s)
+     PASS (400)
+participant name 251 (no truncate)                               -> 400 (0.104290s)
+     PASS (400)
+participant name 250 ok                                          -> 201 (0.246310s)
+     PASS (201)
+51 participants                                                  -> 400 (0.067892s)
+     PASS (400)
+registrations as object                                          -> 400 (0.065287s)
+     PASS (400)
+registration empty {}                                            -> 400 (0.085202s)
+     PASS (400)
+     PASS  .errors["registrations.0"]|type == "string"
+registration only date ok                                        -> 201 (0.106138s)
+     PASS (201)
+registration bad date                                            -> 400 (0.077926s)
+     PASS (400)
+registration number 101                                          -> 400 (0.067299s)
+     PASS (400)
+21 registrations                                                 -> 400 (0.094608s)
+     PASS (400)
+malformed JSON                                                   -> 400 (0.069265s)
+     (info) code=400
+=== PASS=129 FAIL=0 ===
