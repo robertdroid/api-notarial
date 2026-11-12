@@ -52,6 +52,13 @@ final class DeedListItemTest extends TestCase
         $this->assertNull($deed->deedTypeName);
     }
 
+    public function testLegacyZeroDateBecomesNull(): void
+    {
+        $deed = DeedListItem::fromRow($this->row(['fecha_escritura' => '0000-00-00']));
+
+        $this->assertNull($deed->deedDate);
+    }
+
     public function testDeedNumberIsTrimmed(): void
     {
         $deed = DeedListItem::fromRow($this->row(['num_escritura' => '18234 ']));

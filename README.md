@@ -170,6 +170,25 @@ Response fields:
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/v3/deeds` | List deeds (paginated, searchable) |
+| GET | `/api/v3/deeds/{id}` | Deed detail with act, type, subdivision, active participants, registrations and last editor |
+| POST | `/api/v3/deeds` | Create a deed (optionally with participants and registrations, atomically) |
+| PUT | `/api/v3/deeds/{id}` | Replace the editable fields of a deed (never touches `isFinished`, participants or registrations) |
+| POST | `/api/v3/deeds/{id}/finish` | Mark a deed as finished (irreversible; 409 if already finished) |
+| GET | `/api/v3/deeds/{id}/participants` | List active participants |
+| POST | `/api/v3/deeds/{id}/participants` | Add a participant |
+| PUT | `/api/v3/deeds/{id}/participants/{participantId}` | Update a participant |
+| DELETE | `/api/v3/deeds/{id}/participants/{participantId}` | Deactivate a participant (soft delete) |
+| GET | `/api/v3/deeds/{id}/registrations` | List registrations |
+| POST | `/api/v3/deeds/{id}/registrations` | Add a registration |
+| PUT | `/api/v3/deeds/{id}/registrations/{registrationId}` | Update a registration |
+| DELETE | `/api/v3/deeds/{id}/registrations/{registrationId}` | Delete a registration (physical delete) |
+
+Notes for the deed write endpoints:
+- `deedNumber` is **not** unique (a deed with several properties is stored as several rows with the same number)
+- Deed type rules apply: `422 registration_limit_exceeded` (`max_inscripciones`) and `422 subdivision_not_allowed` (`activar_fraccionamientos`). On `PUT` they are only evaluated when the type or subdivision changes
+- Every write (including participants and registrations) updates the deed's `modifiedBy` / `modifiedAt`, inside the same transaction
+- Domain errors return `{ "error", "code" }` (plus `details` when applicable); decide by `code`, not by the message. Another notary's deed always answers `404 deed_not_found`
+- Requires DB migrations `deeds_innodb_and_indexes` (InnoDB for deed tables + `idx_inscripciones_escritura`) and `normalize_participant_status`
 
 Query parameters for list:
 - `page` (optional): positive integer, default 1. Invalid values return 400
@@ -285,6 +304,17 @@ docker-compose exec api ./vendor/bin/phpunit
 ```
 
 ## Changelog
+
+### 2026-11-12 - Feature: Deeds CRUD
+- Completes the `Deed` module: detail, create (with participants and registrations in one transaction), update, finish, and participants / registrations as sub-resources
+- Fixes the legacy bug where editing a finished deed reset its finished flag: `PUT` never touches `terminada`; only `POST /finish` sets it (irreversible)
+- Deed tables moved to InnoDB (`SELECT ... FOR UPDATE` serializes concurrent registrations and double `finish`); every write audits `modifiedBy` / `modifiedAt`
+- Compatible with the v1 sentinels (`id_fraccionamiento` `-1`/`0`, participant `id_estatus` `0`, `0000-00-00` dates); `GET /deeds` no longer shows zero dates as `-0001-11-30`
+- Requires DB migrations `deeds_innodb_and_indexes` and `normalize_participant_status`. Before production: confirm the v1 does not rely on MyISAM-specific features, back up the 3 tables, apply in a low-usage window
+- Endpoints added:
+  - `GET /api/v3/deeds/{id}`, `POST /api/v3/deeds`, `PUT /api/v3/deeds/{id}`, `POST /api/v3/deeds/{id}/finish`
+  - `GET|POST /api/v3/deeds/{id}/participants`, `PUT|DELETE /api/v3/deeds/{id}/participants/{participantId}`
+  - `GET|POST /api/v3/deeds/{id}/registrations`, `PUT|DELETE /api/v3/deeds/{id}/registrations/{registrationId}`
 
 ### 2026-11-11 - Feature: Users CRUD
 - New `User` module to manage the notary's users (`usuarios_notaria`); multi-tenant, passwords hashed with bcrypt (cost 10) and never exposed

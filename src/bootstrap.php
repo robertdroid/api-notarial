@@ -31,7 +31,12 @@ use App\Module\User\Service\UserService;
 use App\Module\Notary\Repository\NotaryRepository;
 use App\Module\Notary\Service\NotaryService;
 use App\Module\Deed\Repository\DeedRepository;
+use App\Module\Deed\Repository\ParticipantRepository;
+use App\Module\Deed\Repository\RegistrationRepository;
+use App\Module\Deed\Service\DeedReferenceValidator;
 use App\Module\Deed\Service\DeedService;
+use App\Module\Deed\Service\ParticipantService;
+use App\Module\Deed\Service\RegistrationService;
 
 $dotenv = Dotenv::createImmutable(BASE_PATH);
 $dotenv->load();
@@ -168,8 +173,45 @@ ServiceLocator::register(DeedRepository::class, function () {
     return new DeedRepository(Connection::getInstance());
 });
 
+ServiceLocator::register(ParticipantRepository::class, function () {
+    return new ParticipantRepository(Connection::getInstance());
+});
+
+ServiceLocator::register(RegistrationRepository::class, function () {
+    return new RegistrationRepository(Connection::getInstance());
+});
+
+ServiceLocator::register(DeedReferenceValidator::class, function () {
+    return new DeedReferenceValidator(
+        ServiceLocator::get(ActRepository::class),
+        ServiceLocator::get(DeedTypeRepository::class),
+        ServiceLocator::get(SubdivisionRepository::class)
+    );
+});
+
 ServiceLocator::register(DeedService::class, function () {
     return new DeedService(
-        ServiceLocator::get(DeedRepository::class)
+        ServiceLocator::get(DeedRepository::class),
+        ServiceLocator::get(ParticipantRepository::class),
+        ServiceLocator::get(RegistrationRepository::class),
+        ServiceLocator::get(DeedReferenceValidator::class),
+        ServiceLocator::get(TransactionManager::class)
+    );
+});
+
+ServiceLocator::register(ParticipantService::class, function () {
+    return new ParticipantService(
+        ServiceLocator::get(DeedRepository::class),
+        ServiceLocator::get(ParticipantRepository::class),
+        ServiceLocator::get(TransactionManager::class)
+    );
+});
+
+ServiceLocator::register(RegistrationService::class, function () {
+    return new RegistrationService(
+        ServiceLocator::get(DeedRepository::class),
+        ServiceLocator::get(RegistrationRepository::class),
+        ServiceLocator::get(DeedReferenceValidator::class),
+        ServiceLocator::get(TransactionManager::class)
     );
 });
