@@ -16,6 +16,8 @@ use App\Module\PaymentTransaction\Controller\PaymentTransactionController;
 use App\Module\User\Controller\UserController;
 use App\Module\Notary\Controller\NotaryController;
 use App\Module\Deed\Controller\DeedController;
+use App\Module\Deed\Controller\ParticipantController;
+use App\Module\Deed\Controller\RegistrationController;
 
 /**
  * API Routes Configuration
@@ -100,15 +102,23 @@ $router->get('/api/v3/notary/logo', [NotaryController::class, 'logo'])->withMidd
 
 // Deeds routes (protected)
 $router->get('/api/v3/deeds', [DeedController::class, 'index'])->withMiddleware('auth');
+$router->get('/api/v3/deeds/{id}', [DeedController::class, 'show'])->withMiddleware('auth');
+$router->post('/api/v3/deeds', [DeedController::class, 'store'])->withMiddleware('auth');
+$router->put('/api/v3/deeds/{id}', [DeedController::class, 'update'])->withMiddleware('auth');
+$router->post('/api/v3/deeds/{id}/finish', [DeedController::class, 'finish'])->withMiddleware('auth');
+
+$router->get('/api/v3/deeds/{id}/participants', [ParticipantController::class, 'index'])->withMiddleware('auth');
+$router->post('/api/v3/deeds/{id}/participants', [ParticipantController::class, 'store'])->withMiddleware('auth');
+$router->put('/api/v3/deeds/{id}/participants/{participantId}', [ParticipantController::class, 'update'])->withMiddleware('auth');
+$router->delete('/api/v3/deeds/{id}/participants/{participantId}', [ParticipantController::class, 'destroy'])->withMiddleware('auth');
+
+$router->get('/api/v3/deeds/{id}/registrations', [RegistrationController::class, 'index'])->withMiddleware('auth');
+$router->post('/api/v3/deeds/{id}/registrations', [RegistrationController::class, 'store'])->withMiddleware('auth');
+$router->put('/api/v3/deeds/{id}/registrations/{registrationId}', [RegistrationController::class, 'update'])->withMiddleware('auth');
+$router->delete('/api/v3/deeds/{id}/registrations/{registrationId}', [RegistrationController::class, 'destroy'])->withMiddleware('auth');
 
 // Protected routes (with auth middleware)
 // $router->group(['middleware' => 'auth', 'prefix' => '/api/v3'], function (Router $router) {
-//
-//     // Deeds
-//     $router->get('/deeds/{id}', [DeedController::class, 'show']);
-//     $router->post('/deeds', [DeedController::class, 'store']);
-//     $router->put('/deeds/{id}', [DeedController::class, 'update']);
-//     $router->delete('/deeds/{id}', [DeedController::class, 'destroy']);
 //
 //     // Acts
 //     $router->get('/acts', [ActController::class, 'index']);

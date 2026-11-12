@@ -7,13 +7,20 @@ namespace App\Module\Deed\Controller;
 use App\Core\Container\ServiceLocator;
 use App\Core\Http\Request;
 use App\Core\Http\Response;
+use App\Module\Deed\DTO\CreateDeedRequest;
 use App\Module\Deed\DTO\DeedListItemResponse;
 use App\Module\Deed\DTO\DeedListQuery;
+use App\Module\Deed\DTO\DeedResponse;
+use App\Module\Deed\DTO\UpdateDeedRequest;
 use App\Module\Deed\Entity\DeedListItem;
+use App\Module\Deed\Exception\DeedError;
+use App\Module\Deed\Exception\DeedException;
 use App\Module\Deed\Service\DeedService;
 
 class DeedController
 {
+    use ParsesDeedIds;
+
     private DeedService $deedService;
 
     public function __construct()
@@ -37,6 +44,75 @@ class DeedController
         return Response::json(
             $result->toArray(static fn (DeedListItem $deed): array => DeedListItemResponse::fromEntity($deed))
         );
+    }
+
+    public function show(Request $request): Response
+    {
+        $id = $this->parseId($request, 'id', DeedError::DeedNotFound);
+        if ($id instanceof Response) {
+            return $id;
+        }
+
+        try {
+            $deed = $this->deedService->getById($id, $request->getNotaryId());
+        } catch (DeedException $e) {
+            return DeedErrorResponse::fromException($e);
+        }
+
+        return Response::json(DeedResponse::fromEntity($deed));
+    }
+
+    public function store(Request $request): Response
+    {
+        $dto = CreateDeedRequest::fromArray($request->getBody());
+        if (!$dto->isValid()) {
+            return DeedErrorResponse::validation($dto->getErrors());
+        }
+
+        try {
+            $deed = $this->deedService->create($dto, $request->getNotaryId(), $request->getUserId());
+        } catch (DeedException $e) {
+            return DeedErrorResponse::fromException($e);
+        }
+
+        return Response::created(DeedResponse::fromEntity($deed));
+    }
+
+    public function update(Request $request): Response
+    {
+        $id = $this->parseId($request, 'id', DeedError::DeedNotFound);
+        if ($id instanceof Response) {
+            return $id;
+        }
+
+        $dto = UpdateDeedRequest::fromArray($request->getBody());
+        if (!$dto->isValid()) {
+            return DeedErrorResponse::validation($dto->getErrors());
+        }
+
+        try {
+            $deed = $this->deedService->update($id, $dto, $request->getNotaryId(), $request->getUserId());
+        } catch (DeedException $e) {
+            return DeedErrorResponse::fromException($e);
+        }
+
+        return Response::json(DeedResponse::fromEntity($deed));
+    }
+
+    public function finish(Request $request): Response
+    {
+        $id = $this->parseId($request, 'id', DeedError::DeedNotFound);
+        if ($id instanceof Response) {
+            return $id;
+        }
+
+        try {
+            $deed = $this->deedService->finish($id, $request->getNotaryId(), $request->getUserId());
+        } catch (DeedException $e) {
+            return DeedErrorResponse::fromException($e);
+        }
+
+        return Response::json(DeedResponse::fromEntity($deed));
     }
 
     private function stringParam(Request $request, string $key): ?string

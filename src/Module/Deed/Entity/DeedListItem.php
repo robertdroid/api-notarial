@@ -30,12 +30,17 @@ final class DeedListItem
             id: (int) $row['id_escritura'],
             deedNumber: trim((string) $row['num_escritura']),
             book: (string) ($row['libro'] ?? ''),
-            deedDate: !empty($row['fecha_escritura'])
-                ? new DateTimeImmutable((string) $row['fecha_escritura'])
-                : null,
+            deedDate: self::parseDate($row['fecha_escritura'] ?? null),
             actName: $row['nombre_acto'] ?? null,
             deedTypeName: $row['nombre_tipo'] ?? null,
             isFinished: (int) ($row['terminada'] ?? 0) === 1,
         );
+    }
+
+    private static function parseDate(?string $value): ?DateTimeImmutable
+    {
+        $ymd = LegacyDate::toYmd($value);
+
+        return $ymd !== null ? new DateTimeImmutable($ymd) : null;
     }
 }
