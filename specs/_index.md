@@ -5,12 +5,12 @@
 
 | # | Feature | PO | Arch | QA | PR |
 |---|---------|----|----- |----|-----|
-| 14 | me_endpoint | ✓ | | | |
 
 ## Completed
 
 | # | Feature | PO | Arch | QA | PR |
 |---|---------|----|----- |----|-----|
+| 14 | me_endpoint | ✓ | ✓ | ✓ | #13 |
 | 13 | deeds_crud | ✓ | ✓ | ✓ | #12 |
 | 12 | users_crud | ✓ | ✓ | ✓ | |
 | 11 | payment_transactions | ✓ | ✓ | ✓ | |
