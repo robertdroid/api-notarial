@@ -30,6 +30,7 @@ use App\Module\User\Repository\UserRepository;
 use App\Module\User\Service\UserService;
 use App\Module\Notary\Repository\NotaryRepository;
 use App\Module\Notary\Service\NotaryService;
+use App\Module\Me\Service\MeService;
 use App\Module\Deed\Repository\DeedRepository;
 use App\Module\Deed\Repository\ParticipantRepository;
 use App\Module\Deed\Repository\RegistrationRepository;
@@ -165,6 +166,13 @@ ServiceLocator::register(NotaryRepository::class, function () {
 
 ServiceLocator::register(NotaryService::class, function () {
     return new NotaryService(
+        ServiceLocator::get(NotaryRepository::class)
+    );
+});
+
+ServiceLocator::register(MeService::class, function () {
+    return new MeService(
+        ServiceLocator::get(UserRepository::class),
         ServiceLocator::get(NotaryRepository::class)
     );
 });

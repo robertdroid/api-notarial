@@ -25,6 +25,19 @@ class NotaryRepository
         return $row ? Notary::fromRow($row) : null;
     }
 
+    /**
+     * Without status filter: lets the caller tell "does not exist" from "inactive".
+     */
+    public function findById(int $id): ?Notary
+    {
+        $stmt = $this->db->prepare('SELECT * FROM notarias WHERE id_notaria = :id');
+        $stmt->execute(['id' => $id]);
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $row ? Notary::fromRow($row) : null;
+    }
+
     public function update(int $id, array $fields): void
     {
         if (empty($fields)) {

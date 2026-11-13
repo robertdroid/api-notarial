@@ -56,4 +56,17 @@ final class User
     {
         return $this->statusId === self::STATUS_ACTIVE ? self::STATUS_ACTIVE : self::STATUS_INACTIVE;
     }
+
+    /**
+     * First name and last names joined by single spaces; blank parts (e.g. no maternal last name) are skipped.
+     */
+    public function fullName(): string
+    {
+        $parts = array_filter(
+            array_map('trim', [$this->firstName, $this->paternalLastName, $this->maternalLastName]),
+            static fn (string $part): bool => $part !== '',
+        );
+
+        return implode(' ', $parts);
+    }
 }
