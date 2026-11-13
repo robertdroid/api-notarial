@@ -77,6 +77,20 @@ final class UserTest extends TestCase
         $this->assertSame($expected, User::fromRow(self::row(['id_estatus' => $raw]))->status());
     }
 
+    public function testFullNameJoinsNameAndLastNames(): void
+    {
+        $this->assertSame('María López García', User::fromRow(self::row())->fullName());
+    }
+
+    public function testFullNameSkipsBlankPartsAndTrims(): void
+    {
+        $user = User::fromRow(self::row(['nombre' => ' María ', 'apellido_materno' => null]));
+        $this->assertSame('María López', $user->fullName());
+
+        $user = User::fromRow(self::row(['apellido_paterno' => '  ', 'apellido_materno' => 'García']));
+        $this->assertSame('María García', $user->fullName());
+    }
+
     public function testEntityHasNoPasswordProperties(): void
     {
         $properties = array_map(

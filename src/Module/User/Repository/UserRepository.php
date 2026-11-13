@@ -70,6 +70,20 @@ class UserRepository
     }
 
     /**
+     * Does NOT filter by notary: only to resolve the identity from the token. The caller MUST compare
+     * the returned user's notaryId against the token's notaryId (see MeService).
+     */
+    public function findById(int $id): ?User
+    {
+        $stmt = $this->db->prepare('SELECT ' . self::COLUMNS . ' FROM usuarios_notaria WHERE id_usuario = :id');
+        $stmt->execute(['id' => $id]);
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $row ? User::fromRow($row) : null;
+    }
+
+    /**
      * Global (no notary filter, the login has no notary context) and case-insensitive.
      */
     public function usernameExists(string $username, ?int $excludeId = null): bool

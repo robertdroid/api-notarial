@@ -63,6 +63,8 @@ tags:
       - Passwords are never returned. They are set on creation (bcrypt) and cannot be changed through this API yet
       - `status` is normalized: legacy `0` values are exposed as `2` (inactive)
       - A deactivated user keeps a valid access token until it expires, but can no longer refresh it
+  - name: Me
+    description: Session context of the authenticated user (user + notary) in a single call
   - name: Notary
     description: Notary profile management (current user's notary)
   - name: Deeds
@@ -2707,6 +2709,86 @@ paths:
               example:
                 error: "Username already exists"
 
+  /me:
+    get:
+      tags:
+        - Me
+      summary: Get current user and notary
+      description: |
+        Returns the authenticated user and their notary in one call (session context for the frontend).
+
+        - User id and notary id come **only** from the JWT. The endpoint accepts no path, query or body parameters
+        - Status is re-checked in the database on every call, so a deactivated user or notary is rejected even with a valid token
+        - No password, hash, `notaryId` or logo file name is returned (`notary.hasLogo` tells whether a logo exists; use `GET /notary/logo` to download it)
+      operationId: getMe
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user and notary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeResponse'
+              example:
+                user:
+                  id: 13
+                  username: "maria.lopez"
+                  firstName: "María"
+                  paternalLastName: "López"
+                  maternalLastName: "García"
+                  fullName: "María López García"
+                  access: ["ESC", "PAG"]
+                  status: 1
+                  lastAccess: "2026-11-10T08:30:00"
+                notary:
+                  id: 1
+                  name: "Notaría 45 de Guadalajara"
+                  notaryName: "Lic. Juan Pérez López"
+                  city: "Guadalajara"
+                  address: "Av. Vallarta 1234, Col. Centro"
+                  phone: "33 1234-5678"
+                  rfc: "NPL850101ABC"
+                  hasLogo: true
+                  status: 1
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: |
+            The user's notary does not match the token, the user is inactive, or the notary is inactive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                tenant_mismatch:
+                  value:
+                    error: "Forbidden"
+                user_inactive:
+                  value:
+                    error: "User is inactive"
+                notary_inactive:
+                  value:
+                    error: "Notary is inactive"
+        '404':
+          description: The user in the token no longer exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "User not found"
+        '405':
+          description: Method not allowed (only GET is supported)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /notary:
     get:
       tags:
@@ -3756,6 +3838,29 @@ components:
           nullable: true
           description: Last login, set by the auth module. `null` if the user never logged in
           example: "2026-11-10T08:30:00"
+
+    MeUser:
+      allOf:
+        - $ref: '#/components/schemas/UserResponse'
+        - type: object
+          required:
+            - fullName
+          properties:
+            fullName:
+              type: string
+              description: First name and last names joined by single spaces (no trailing space when there is no maternal last name)
+              example: "María López García"
+
+    MeResponse:
+      type: object
+      required:
+        - user
+        - notary
+      properties:
+        user:
+          $ref: '#/components/schemas/MeUser'
+        notary:
+          $ref: '#/components/schemas/NotaryResponse'
 
     CreateUserRequest:
       type: object
