@@ -3,6 +3,10 @@
 ## Active
 <!-- Features currently in development -->
 
+| # | Feature | PO | Arch | QA | PR |
+|---|---------|----|----- |----|-----|
+| 14 | me_endpoint | ✓ | | | |
+
 ## Completed
 
 | # | Feature | PO | Arch | QA | PR |
