@@ -283,12 +283,16 @@ Totals are computed by the server. If the procedure has configured taxes, `taxes
 | GET | `/api/v3/users/{id}` | Get user by ID |
 | POST | `/api/v3/users` | Create user (201, returns the user) |
 | PUT | `/api/v3/users/{id}` | Partial update; deactivate with `status: 2` (200, returns the user) |
+| PUT | `/api/v3/users/{id}/password` | Set a user's password, same notary (204; body `{"password"}`) |
+| PUT | `/api/v3/me/password` | Change own password (204; body `{"password"}`) |
 
 - `access` is an array of module codes: `ESC` (deeds) and `PAG` (payments); at least one is required.
 - `username` is **globally unique** (all notaries) and checked case-insensitively; 3–20 characters (letters, digits, `.`, `_`). On `PUT` the format is only validated when the username changes, so legacy usernames stay editable.
 - `password` (min 8 characters, max 72 bytes) is stored with bcrypt and never returned. It cannot be changed through `PUT` (400).
 - A user cannot deactivate their own account (403). Legacy status `0` is exposed as `status: 2`.
 - There is no DELETE endpoint; deactivate with `status: 2`. A deactivated user cannot log in or refresh, but an already issued access token stays valid until it expires.
+
+- Password change: no current password is required, existing JWTs are not invalidated and nothing is audited. Any authenticated user can set the password of any user in their notary (no admin role). Only `password_hash` is written; legacy `contrasenia` (MD5) is untouched while v1 coexists, so v1 keeps accepting the old password (clean it when v1 is retired). A non-numeric or `<= 0` `{id}` returns 404.
 
 ## API Conventions
 
@@ -304,6 +308,14 @@ docker-compose exec api ./vendor/bin/phpunit
 ```
 
 ## Changelog
+
+### 2026-11-16 - Feature: User password change
+- Two endpoints set a new password (no current password) and return `204`; passwords are bcrypt (cost 10), never returned
+- Multi-tenant: a user of another notary returns 404. Existing JWTs stay valid; no audit trail
+- Only `password_hash` is written; `contrasenia` (MD5) is untouched while v1 coexists (clean up when v1 is retired)
+- No DB migration required
+- Endpoints added:
+  - `PUT /api/v3/me/password`, `PUT /api/v3/users/{id}/password`
 
 ### 2026-11-12 - Feature: Deeds CRUD
 - Completes the `Deed` module: detail, create (with participants and registrations in one transaction), update, finish, and participants / registrations as sub-resources

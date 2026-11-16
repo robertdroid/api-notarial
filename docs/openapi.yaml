@@ -2709,6 +2709,73 @@ paths:
               example:
                 error: "Username already exists"
 
+  /users/{id}/password:
+    put:
+      tags:
+        - Users
+      summary: Set a user's password
+      description: |
+        Sets a new password for a user of the authenticated user's notary. Any authenticated user may do it
+        (there are no admin roles), including for their own id.
+
+        - The current password is **not** required; only the new one is sent
+        - Existing JWTs are **not** invalidated and no audit trail is written
+        - The target may be inactive
+        - Only `password_hash` is written; the legacy `contrasenia` (MD5) is left untouched while v1 coexists,
+          so v3 stops accepting the previous password but v1 keeps accepting it
+        - A non-numeric or non-positive `{id}` returns 404 (not 400)
+        - Validation order: id (404) → body (400) → user exists in the notary (404)
+      operationId: changeUserPassword
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '204':
+          description: Password changed (no body)
+        '400':
+          description: Missing or invalid password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missing:
+                  value:
+                    error: "Validation failed"
+                    errors:
+                      password: "Password is required"
+                tooShort:
+                  value:
+                    error: "Validation failed"
+                    errors:
+                      password: "Password must be at least 8 characters"
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Invalid id, or the user does not exist in the notary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "User not found"
+
   /me:
     get:
       tags:
@@ -2788,6 +2855,52 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+  /me/password:
+    put:
+      tags:
+        - Me
+      summary: Change own password
+      description: |
+        Sets a new password for the user in the JWT. The user id comes **only** from the token; path, query and
+        body cannot select another user. Same rules and side effects as `PUT /users/{id}/password`
+        (no current password, JWTs not invalidated, `contrasenia` untouched).
+      operationId: changeOwnPassword
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '204':
+          description: Password changed (no body)
+        '400':
+          description: Missing or invalid password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Validation failed"
+                errors:
+                  password: "Password is required"
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: The user in the token no longer exists in the notary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "User not found"
 
   /notary:
     get:
@@ -3909,6 +4022,18 @@ components:
           enum: [1, 2]
           default: 1
           description: Must be an integer (`"1"` is rejected)
+
+    ChangePasswordRequest:
+      type: object
+      required:
+        - password
+      description: Extra fields are ignored. The value is not trimmed.
+      properties:
+        password:
+          type: string
+          minLength: 8
+          description: New password. At least 8 characters and at most 72 bytes; no NUL bytes
+          example: "NuevaClave123"
 
     UpdateUserRequest:
       type: object
