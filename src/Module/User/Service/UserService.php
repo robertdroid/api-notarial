@@ -48,7 +48,7 @@ final class UserService
             throw new UserException(UserError::UsernameTaken);
         }
 
-        $hash = password_hash($dto->password, PASSWORD_BCRYPT, ['cost' => self::BCRYPT_COST]);
+        $hash = $this->hashPassword($dto->password);
 
         try {
             $id = $this->repository->create($notaryId, $dto, $hash);
@@ -98,5 +98,22 @@ final class UserService
         }
 
         return $this->getById($id, $notaryId);
+    }
+
+    /**
+     * Sets a new password without asking for the current one (spec 15). The target status is not checked.
+     *
+     * @throws UserException UserNotFound
+     */
+    public function changePassword(int $id, int $notaryId, string $password): void
+    {
+        $this->getById($id, $notaryId);
+
+        $this->repository->updatePassword($id, $notaryId, $this->hashPassword($password));
+    }
+
+    private function hashPassword(string $password): string
+    {
+        return password_hash($password, PASSWORD_BCRYPT, ['cost' => self::BCRYPT_COST]);
     }
 }

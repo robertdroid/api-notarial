@@ -315,4 +315,39 @@ final class UserServiceTest extends TestCase
             self::ACTOR_ID
         );
     }
+
+    public function testChangePasswordStoresBcryptHashOfNewPassword(): void
+    {
+        $this->repository->method('findByIdAndNotary')->willReturn(self::user());
+        $this->repository->expects($this->once())->method('updatePassword')->with(
+            self::USER_ID,
+            self::NOTARY,
+            $this->callback(static fn(string $hash): bool => str_starts_with($hash, '$2y$10$')
+                && password_verify(self::PASSWORD, $hash))
+        );
+
+        $this->service->changePassword(self::USER_ID, self::NOTARY, self::PASSWORD);
+    }
+
+    public function testChangePasswordThrowsNotFoundAndNeverWrites(): void
+    {
+        $this->repository->expects($this->once())->method('findByIdAndNotary')
+            ->with(self::USER_ID, self::NOTARY)->willReturn(null);
+        $this->repository->expects($this->never())->method('updatePassword');
+
+        try {
+            $this->service->changePassword(self::USER_ID, self::NOTARY, self::PASSWORD);
+            $this->fail('Expected UserException');
+        } catch (UserException $e) {
+            $this->assertSame(UserError::UserNotFound, $e->error);
+        }
+    }
+
+    public function testChangePasswordAllowsInactiveUser(): void
+    {
+        $this->repository->method('findByIdAndNotary')->willReturn(self::user(statusId: 2));
+        $this->repository->expects($this->once())->method('updatePassword');
+
+        $this->service->changePassword(self::USER_ID, self::NOTARY, self::PASSWORD);
+    }
 }

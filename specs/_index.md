@@ -5,6 +5,7 @@
 
 | # | Feature | PO | Arch | QA | PR |
 |---|---------|----|----- |----|-----|
+| 15 | user_password_change | ✓ | ✓ | ✓ | #15 |
 
 ## Completed
 

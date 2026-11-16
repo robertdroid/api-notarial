@@ -95,9 +95,11 @@ $router->get('/api/v3/users', [UserController::class, 'index'])->withMiddleware(
 $router->get('/api/v3/users/{id}', [UserController::class, 'show'])->withMiddleware('auth');
 $router->post('/api/v3/users', [UserController::class, 'store'])->withMiddleware('auth');
 $router->put('/api/v3/users/{id}', [UserController::class, 'update'])->withMiddleware('auth');
+$router->put('/api/v3/users/{id}/password', [UserController::class, 'changePassword'])->withMiddleware('auth');
 
 // Me (protected): user + notary of the token
 $router->get('/api/v3/me', [MeController::class, 'show'])->withMiddleware('auth');
+$router->put('/api/v3/me/password', [UserController::class, 'changeOwnPassword'])->withMiddleware('auth');
 
 // Notary profile routes (protected)
 $router->get('/api/v3/notary', [NotaryController::class, 'show'])->withMiddleware('auth');

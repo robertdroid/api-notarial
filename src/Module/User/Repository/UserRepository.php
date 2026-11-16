@@ -12,7 +12,7 @@ use PDO;
 
 /**
  * Data access for usuarios_notaria. Never selects contrasenia or password_hash (ADR-006):
- * the only password data that touches this class is the hash passed to create().
+ * the only password data that touches this class is the hash written by create() and updatePassword().
  */
 class UserRepository
 {
@@ -159,6 +159,22 @@ class UserRepository
         } catch (\PDOException $e) {
             $this->rethrowDuplicate($e);
         }
+    }
+
+    /**
+     * Writes password_hash only. contrasenia (legacy MD5) is left untouched while v1 coexists (spec 15, ADR-002).
+     * No rowCount() check: the caller verifies existence first (ADR-004).
+     */
+    public function updatePassword(int $id, int $notaryId, string $passwordHash): void
+    {
+        $sql = 'UPDATE usuarios_notaria SET password_hash = :hash
+                WHERE id_usuario = :id AND id_notaria = :notaryId';
+
+        $this->db->prepare($sql)->execute([
+            'hash' => $passwordHash,
+            'id' => $id,
+            'notaryId' => $notaryId,
+        ]);
     }
 
     private function rethrowDuplicate(\PDOException $e): never

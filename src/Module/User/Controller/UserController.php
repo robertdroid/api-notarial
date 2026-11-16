@@ -7,6 +7,7 @@ namespace App\Module\User\Controller;
 use App\Core\Container\ServiceLocator;
 use App\Core\Http\Request;
 use App\Core\Http\Response;
+use App\Module\User\DTO\ChangePasswordRequest;
 use App\Module\User\DTO\CreateUserRequest;
 use App\Module\User\DTO\UpdateUserRequest;
 use App\Module\User\DTO\UserResponse;
@@ -92,6 +93,50 @@ final class UserController
         }
 
         return Response::json(UserResponse::fromEntity($user));
+    }
+
+    public function changePassword(Request $request): Response
+    {
+        $id = filter_var($request->getRouteParam('id'), FILTER_VALIDATE_INT);
+
+        if ($id === false || $id <= 0) {
+            return Response::notFound(self::NOT_FOUND);
+        }
+
+        return $this->applyPasswordChange($id, $request);
+    }
+
+    public function changeOwnPassword(Request $request): Response
+    {
+        $userId = $request->getUserId();
+
+        if ($userId === null) {
+            return Response::unauthorized();
+        }
+
+        return $this->applyPasswordChange($userId, $request);
+    }
+
+    private function applyPasswordChange(int $id, Request $request): Response
+    {
+        $notaryId = $request->getNotaryId();
+
+        if ($notaryId === null) {
+            return Response::unauthorized();
+        }
+
+        $dto = ChangePasswordRequest::fromArray($request->getBody());
+        if (!$dto->isValid()) {
+            return Response::badRequest('Validation failed', $dto->getErrors());
+        }
+
+        try {
+            $this->service->changePassword($id, $notaryId, $dto->password);
+        } catch (UserException $e) {
+            return $this->errorResponse($e->error);
+        }
+
+        return Response::noContent();
     }
 
     private function errorResponse(UserError $error): Response
