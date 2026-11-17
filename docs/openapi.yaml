@@ -1087,6 +1087,37 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /payment-procedures/taxes:
+    get:
+      tags:
+        - PaymentProcedureTaxes
+      summary: List active payment procedures with their taxes
+      description: |
+        Returns every active procedure of the notary with its active taxes, in a single call.
+
+        - Procedures without active taxes are included with `taxes: []`
+        - Inactive procedures, inactive assignments and taxes inactive in the catalog are excluded
+        - Procedures and taxes are in natural alphabetical order (case- and accent-insensitive; ties by ID)
+        - Returns `[]` when the notary has no active procedures
+      operationId: listPaymentProceduresWithTaxes
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Procedures with their taxes (plain array, no envelope)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProcedureWithTaxesResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /payment-procedures/{id}:
     get:
       tags:
@@ -3728,6 +3759,46 @@ components:
           example: 2
 
     # Payment Procedure Taxes schemas
+    ProcedureWithTaxesResponse:
+      type: object
+      required:
+        - procedureId
+        - procedureName
+        - taxes
+      properties:
+        procedureId:
+          type: integer
+          description: Payment procedure ID
+          example: 1
+        procedureName:
+          type: string
+          description: Payment procedure name
+          example: "Compraventa"
+        taxes:
+          type: array
+          description: Active taxes assigned to the procedure (empty when none)
+          items:
+            $ref: '#/components/schemas/ProcedureTaxSummary'
+    ProcedureTaxSummary:
+      type: object
+      required:
+        - taxId
+        - taxName
+        - defaultValue
+      properties:
+        taxId:
+          type: integer
+          description: Payment tax ID
+          example: 4
+        taxName:
+          type: string
+          description: Payment tax name
+          example: "ISR"
+        defaultValue:
+          type: number
+          format: double
+          description: Default value of the tax for this procedure (0 is a valid value)
+          example: 500
     ProcedureTaxResponse:
       type: object
       required:

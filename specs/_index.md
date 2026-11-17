@@ -5,6 +5,7 @@
 
 | # | Feature | PO | Arch | QA | PR |
 |---|---------|----|----- |----|-----|
+| 16 | payment_procedures_taxes_list | ✓ | ✓ | ✓ | #16 |
 | 15 | user_password_change | ✓ | ✓ | ✓ | #15 |
 
 ## Completed

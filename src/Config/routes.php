@@ -70,6 +70,8 @@ $router->put('/api/v3/payment-taxes/{id}', [PaymentTaxController::class, 'update
 
 // Payment Procedures routes (protected)
 $router->get('/api/v3/payment-procedures', [PaymentProcedureController::class, 'index'])->withMiddleware('auth');
+// Must be registered before /payment-procedures/{id}, otherwise "taxes" is taken as an id
+$router->get('/api/v3/payment-procedures/taxes', [PaymentProcedureTaxController::class, 'listAll'])->withMiddleware('auth');
 $router->get('/api/v3/payment-procedures/{id}', [PaymentProcedureController::class, 'show'])->withMiddleware('auth');
 $router->post('/api/v3/payment-procedures', [PaymentProcedureController::class, 'store'])->withMiddleware('auth');
 $router->put('/api/v3/payment-procedures/{id}', [PaymentProcedureController::class, 'update'])->withMiddleware('auth');
