@@ -9,6 +9,7 @@ use App\Core\Http\Request;
 use App\Core\Http\Response;
 use App\Module\PaymentProcedureTax\DTO\AddProcedureTaxesRequest;
 use App\Module\PaymentProcedureTax\DTO\ProcedureTaxResponse;
+use App\Module\PaymentProcedureTax\DTO\ProcedureWithTaxesResponse;
 use App\Module\PaymentProcedureTax\DTO\UpdateProcedureTaxRequest;
 use App\Module\PaymentProcedureTax\Exception\InvalidProcedureTaxItemsException;
 use App\Module\PaymentProcedureTax\Exception\ProcedureTaxError;
@@ -22,6 +23,13 @@ final class PaymentProcedureTaxController
     public function __construct()
     {
         $this->service = ServiceLocator::get(PaymentProcedureTaxService::class);
+    }
+
+    public function listAll(Request $request): Response
+    {
+        $procedures = $this->service->getAllWithTaxes($request->getNotaryId());
+
+        return Response::json(ProcedureWithTaxesResponse::fromCollection($procedures));
     }
 
     public function index(Request $request): Response

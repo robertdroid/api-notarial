@@ -8,6 +8,7 @@ use App\Module\PaymentProcedure\Entity\PaymentProcedure;
 use App\Module\PaymentProcedure\Repository\PaymentProcedureRepository;
 use App\Module\PaymentProcedureTax\DTO\ProcedureTaxItem;
 use App\Module\PaymentProcedureTax\Entity\PaymentProcedureTax;
+use App\Module\PaymentProcedureTax\Entity\ProcedureWithTaxes;
 use App\Module\PaymentProcedureTax\Exception\InvalidProcedureTaxItemsException;
 use App\Module\PaymentProcedureTax\Exception\ProcedureTaxError;
 use App\Module\PaymentProcedureTax\Exception\ProcedureTaxException;
@@ -33,6 +34,14 @@ final class PaymentProcedureTaxService
         $this->requireProcedure($procedureId, $notaryId, requireActive: false);
 
         return $this->repository->findActiveByProcedure($procedureId, $notaryId);
+    }
+
+    /**
+     * @return ProcedureWithTaxes[]
+     */
+    public function getAllWithTaxes(int $notaryId): array
+    {
+        return $this->repository->findActiveProceduresWithTaxes($notaryId);
     }
 
     /**

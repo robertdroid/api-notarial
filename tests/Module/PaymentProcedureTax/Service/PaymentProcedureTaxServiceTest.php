@@ -8,6 +8,7 @@ use App\Module\PaymentProcedure\Entity\PaymentProcedure;
 use App\Module\PaymentProcedure\Repository\PaymentProcedureRepository;
 use App\Module\PaymentProcedureTax\DTO\ProcedureTaxItem;
 use App\Module\PaymentProcedureTax\Entity\PaymentProcedureTax;
+use App\Module\PaymentProcedureTax\Entity\ProcedureWithTaxes;
 use App\Module\PaymentProcedureTax\Exception\InvalidProcedureTaxItemsException;
 use App\Module\PaymentProcedureTax\Exception\ProcedureTaxError;
 use App\Module\PaymentProcedureTax\Exception\ProcedureTaxException;
@@ -104,6 +105,24 @@ final class PaymentProcedureTaxServiceTest extends TestCase
             ProcedureTaxError::ProcedureNotFound,
             fn () => $this->service->getByProcedure(self::PROCEDURE, self::NOTARY)
         );
+    }
+
+    // ---- getAllWithTaxes ------------------------------------------------
+
+    public function testGetAllWithTaxesDelegatesWithNotaryId(): void
+    {
+        $result = [new ProcedureWithTaxes(1, 'Compraventa', [new PaymentProcedureTax(1, 2, 'ISR', 5.0, 1)])];
+        $this->repository->expects($this->once())->method('findActiveProceduresWithTaxes')
+            ->with(self::NOTARY)->willReturn($result);
+
+        $this->assertSame($result, $this->service->getAllWithTaxes(self::NOTARY));
+    }
+
+    public function testGetAllWithTaxesReturnsEmptyListWhenNoProcedures(): void
+    {
+        $this->repository->method('findActiveProceduresWithTaxes')->willReturn([]);
+
+        $this->assertSame([], $this->service->getAllWithTaxes(self::NOTARY));
     }
 
     // ---- add ------------------------------------------------------------
