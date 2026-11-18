@@ -13,6 +13,7 @@ use App\Module\PaymentClient\Controller\PaymentClientController;
 use App\Module\PaymentProcedure\Controller\PaymentProcedureController;
 use App\Module\PaymentProcedureTax\Controller\PaymentProcedureTaxController;
 use App\Module\PaymentTransaction\Controller\PaymentTransactionController;
+use App\Module\Payment\Controller\PaymentController;
 use App\Module\User\Controller\UserController;
 use App\Module\Notary\Controller\NotaryController;
 use App\Module\Me\Controller\MeController;
@@ -91,6 +92,12 @@ $router->get('/api/v3/payment-transactions', [PaymentTransactionController::clas
 $router->get('/api/v3/payment-transactions/{id}', [PaymentTransactionController::class, 'show'])->withMiddleware('auth');
 $router->post('/api/v3/payment-transactions', [PaymentTransactionController::class, 'store'])->withMiddleware('auth');
 $router->put('/api/v3/payment-transactions/{id}', [PaymentTransactionController::class, 'update'])->withMiddleware('auth');
+
+// Payments routes (protected)
+$router->get('/api/v3/payments', [PaymentController::class, 'showByUuid'])->withMiddleware('auth');
+$router->get('/api/v3/payments/{id}', [PaymentController::class, 'show'])->withMiddleware('auth');
+$router->post('/api/v3/payments', [PaymentController::class, 'store'])->withMiddleware('auth');
+$router->put('/api/v3/payments/{id}', [PaymentController::class, 'update'])->withMiddleware('auth');
 
 // Users routes (protected)
 $router->get('/api/v3/users', [UserController::class, 'index'])->withMiddleware('auth');

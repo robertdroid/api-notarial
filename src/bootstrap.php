@@ -26,6 +26,8 @@ use App\Module\PaymentProcedureTax\Service\PaymentProcedureTaxService;
 use App\Core\Database\TransactionManager;
 use App\Module\PaymentTransaction\Repository\PaymentTransactionRepository;
 use App\Module\PaymentTransaction\Service\PaymentTransactionService;
+use App\Module\Payment\Repository\PaymentRepository;
+use App\Module\Payment\Service\PaymentService;
 use App\Module\User\Repository\UserRepository;
 use App\Module\User\Service\UserService;
 use App\Module\Notary\Repository\NotaryRepository;
@@ -147,6 +149,17 @@ ServiceLocator::register(PaymentTransactionService::class, function () {
         ServiceLocator::get(PaymentTaxRepository::class),
         ServiceLocator::get(PaymentProcedureTaxRepository::class),
         ServiceLocator::get(TransactionManager::class)
+    );
+});
+
+ServiceLocator::register(PaymentRepository::class, function () {
+    return new PaymentRepository(Connection::getInstance());
+});
+
+ServiceLocator::register(PaymentService::class, function () {
+    return new PaymentService(
+        ServiceLocator::get(PaymentRepository::class),
+        ServiceLocator::get(PaymentClientRepository::class)
     );
 });
 
