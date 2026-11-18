@@ -4,27 +4,25 @@ declare(strict_types=1);
 
 namespace App\Module\PaymentTransaction\DTO;
 
+use App\Shared\Uuid\ClientUuid;
+
 final class TransactionFieldRules
 {
     public const MAX_DETAILS = 50;
     public const MAX_QUANTITY = 9999;
     public const MAX_MONEY = 999999999.99;
     public const MAX_TEXT_BYTES = 65535;
-    public const UUID_ERROR = 'UUID must be 1 to 20 characters (letters, digits, - or _)';
+    public const UUID_ERROR = ClientUuid::ERROR_MESSAGE;
 
     public static function positiveInt(mixed $value): bool
     {
         return is_int($value) && $value > 0;
     }
 
-    /** Returns an error message, or null when valid. No trim and no case change (utf8mb3_bin column). */
+    /** Returns an error message, or null when valid. */
     public static function uuid(mixed $value): ?string
     {
-        if (!is_string($value) || preg_match('/^[A-Za-z0-9_-]{1,20}$/D', $value) !== 1) {
-            return self::UUID_ERROR;
-        }
-
-        return null;
+        return ClientUuid::validate($value);
     }
 
     public static function date(mixed $value): bool
