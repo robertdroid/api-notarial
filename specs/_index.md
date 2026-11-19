@@ -5,7 +5,7 @@
 
 | # | Feature | PO | Arch | QA | PR |
 |---|---------|----|----- |----|-----|
-| 19 | payment_client_statement | ✓ | ✓ | | |
+| 19 | payment_client_statement | ✓ | ✓ | ✓ | #19 |
 | 18 | payment_receipts_pdf | ✓ | ✓ | ✓ | #18 |
 | 17 | payments_payments_crud | ✓ | ✓ | ✓ | #17 |
 | 16 | payment_procedures_taxes_list | ✓ | ✓ | ✓ | #16 |
