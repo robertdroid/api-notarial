@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
     git \
     curl \
     libpng-dev \
+    libjpeg-dev \
     libonig-dev \
     libxml2-dev \
     libzip-dev \
@@ -15,8 +16,9 @@ RUN apt-get update && apt-get install -y \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Install PHP extensions
-RUN docker-php-ext-install \
+# Install PHP extensions (gd needs JPEG support for notary logos)
+RUN docker-php-ext-configure gd --with-jpeg \
+    && docker-php-ext-install \
     pdo \
     pdo_mysql \
     mysqli \

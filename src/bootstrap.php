@@ -33,6 +33,11 @@ use App\Module\User\Service\UserService;
 use App\Module\Notary\Repository\NotaryRepository;
 use App\Module\Notary\Service\NotaryService;
 use App\Module\Me\Service\MeService;
+use App\Module\Receipt\Renderer\QrCodeGenerator;
+use App\Module\Receipt\Renderer\ReceiptHtmlBuilder;
+use App\Module\Receipt\Renderer\ReceiptPdfRenderer;
+use App\Module\Receipt\Service\AmountInWordsConverter;
+use App\Module\Receipt\Service\ReceiptService;
 use App\Module\Deed\Repository\DeedRepository;
 use App\Module\Deed\Repository\ParticipantRepository;
 use App\Module\Deed\Repository\RegistrationRepository;
@@ -161,6 +166,20 @@ ServiceLocator::register(PaymentService::class, function () {
         ServiceLocator::get(PaymentRepository::class),
         ServiceLocator::get(PaymentClientRepository::class)
     );
+});
+
+ServiceLocator::register(ReceiptService::class, function () {
+    return new ReceiptService(
+        ServiceLocator::get(PaymentTransactionService::class),
+        ServiceLocator::get(PaymentService::class),
+        ServiceLocator::get(PaymentClientService::class),
+        ServiceLocator::get(NotaryService::class),
+        new AmountInWordsConverter()
+    );
+});
+
+ServiceLocator::register(ReceiptPdfRenderer::class, function () {
+    return new ReceiptPdfRenderer(new ReceiptHtmlBuilder(), new QrCodeGenerator());
 });
 
 ServiceLocator::register(UserRepository::class, function () {
