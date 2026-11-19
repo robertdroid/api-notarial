@@ -1733,6 +1733,92 @@ paths:
               example:
                 error: "Client not found"
 
+  /payment-clients/{id}/statement:
+    get:
+      tags:
+        - PaymentClients
+      summary: Get a payment client's account statement
+      description: |
+        Returns the charges (transactions), payments and balance of a client, optionally limited by a date range.
+        Read-only.
+
+        - Only **active** transactions count; cancelled ones are excluded from the list, the totals and the balance
+        - An **inactive** client can be consulted. 404 is returned only if the client doesn't exist or belongs to another notary
+        - `from` and `to` are inclusive days (`to` covers the whole last day, whatever the time of the movement)
+        - Both are optional; an empty value (`from=`) is treated as not sent; unknown parameters are ignored
+        - `pendingAmount` = active charges before `from` minus payments before `from`; `0` when `from` is not sent
+        - `balance` = `pendingAmount + totalCharges - totalPayments`. Negative means the client has credit
+        - A payment with no date appears (and adds up) **only** when neither `from` nor `to` is sent; it is listed last
+        - `transactions` are ordered by date ascending; `payments` by date ascending (undated last)
+        - Amounts are rounded to 2 decimals. `date` fields use `YYYY-MM-DD`
+        - No pagination: all the movements in the range are returned
+        - The `id` is validated first, then `from` / `to`, then the client lookup
+      operationId: getPaymentClientStatement
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Payment client ID. Not positive returns 404
+          schema:
+            type: integer
+        - name: from
+          in: query
+          required: false
+          description: Start of the range (inclusive), `YYYY-MM-DD`
+          schema:
+            type: string
+            format: date
+          example: "2026-03-01"
+        - name: to
+          in: query
+          required: false
+          description: End of the range (inclusive), `YYYY-MM-DD`. Must not be before `from`
+          schema:
+            type: string
+            format: date
+          example: "2026-03-31"
+      responses:
+        '200':
+          description: Client account statement
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientStatementResponse'
+        '400':
+          description: Invalid ID format, or `from` / `to` is not a valid date or `to` is before `from`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidId:
+                  summary: Non-numeric ID
+                  value:
+                    error: "Invalid ID format"
+                invalidDates:
+                  summary: Invalid dates
+                  value:
+                    error: "Validation failed"
+                    errors:
+                      from: "From must be a valid date in YYYY-MM-DD format"
+                      to: "To must not be before from"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Client not found (doesn't exist, belongs to another notary, or the ID is not positive)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Client not found"
+
   /payment-transactions:
     get:
       tags:
@@ -4433,6 +4519,114 @@ components:
           enum: [1, 2]
           description: Client status (1 = active, 2 = inactive)
           example: 1
+
+    ClientStatementResponse:
+      type: object
+      required:
+        - clientId
+        - clientName
+        - fromDate
+        - toDate
+        - transactions
+        - payments
+        - pendingAmount
+        - totalCharges
+        - totalPayments
+        - balance
+      properties:
+        clientId:
+          type: integer
+          example: 5
+        clientName:
+          type: string
+          description: Current name of the client
+          example: "María García López"
+        fromDate:
+          type: string
+          format: date
+          nullable: true
+          description: The `from` value received, or null
+          example: "2026-03-01"
+        toDate:
+          type: string
+          format: date
+          nullable: true
+          description: The `to` value received, or null
+          example: "2026-03-31"
+        transactions:
+          type: array
+          description: Active transactions in the range (charges)
+          items:
+            type: object
+            required: [transactionId, uuid, date, procedureName, reference, fee, taxes, total]
+            properties:
+              transactionId:
+                type: integer
+                example: 25
+              uuid:
+                type: string
+                example: "Us2Gvq"
+              date:
+                type: string
+                format: date
+                example: "2026-03-10"
+              procedureName:
+                type: string
+                description: Empty string when the procedure no longer exists
+                example: "Trámite de Compraventa"
+              reference:
+                type: string
+                example: "ESC-123"
+              fee:
+                type: number
+                example: 1000.0
+              taxes:
+                type: number
+                example: 160.0
+              total:
+                type: number
+                example: 1160.0
+        payments:
+          type: array
+          description: Payments in the range (credits)
+          items:
+            type: object
+            required: [paymentId, uuid, date, comment, amount]
+            properties:
+              paymentId:
+                type: integer
+                example: 10
+              uuid:
+                type: string
+                example: "abc123xyz"
+              date:
+                type: string
+                format: date
+                nullable: true
+                description: Null for legacy payments with no date
+                example: "2026-03-15"
+              comment:
+                type: string
+                example: "Anticipo"
+              amount:
+                type: number
+                example: 500.0
+        pendingAmount:
+          type: number
+          description: Balance carried from before `from` (active charges minus payments). 0 when `from` is not sent
+          example: 0.0
+        totalCharges:
+          type: number
+          description: Sum of `total` of the listed transactions
+          example: 1160.0
+        totalPayments:
+          type: number
+          description: Sum of `amount` of the listed payments
+          example: 500.0
+        balance:
+          type: number
+          description: pendingAmount + totalCharges - totalPayments. Negative means credit in favor of the client
+          example: 660.0
 
     CreatePaymentClientRequest:
       type: object
