@@ -19,6 +19,8 @@ use App\Module\PaymentTax\Repository\PaymentTaxRepository;
 use App\Module\PaymentTax\Service\PaymentTaxService;
 use App\Module\PaymentClient\Repository\PaymentClientRepository;
 use App\Module\PaymentClient\Service\PaymentClientService;
+use App\Module\PaymentStatement\Repository\StatementRepository;
+use App\Module\PaymentStatement\Service\PaymentStatementService;
 use App\Module\PaymentProcedure\Repository\PaymentProcedureRepository;
 use App\Module\PaymentProcedure\Service\PaymentProcedureService;
 use App\Module\PaymentProcedureTax\Repository\PaymentProcedureTaxRepository;
@@ -135,6 +137,17 @@ ServiceLocator::register(PaymentClientRepository::class, function () {
 ServiceLocator::register(PaymentClientService::class, function () {
     return new PaymentClientService(
         ServiceLocator::get(PaymentClientRepository::class)
+    );
+});
+
+ServiceLocator::register(StatementRepository::class, function () {
+    return new StatementRepository(Connection::getInstance());
+});
+
+ServiceLocator::register(PaymentStatementService::class, function () {
+    return new PaymentStatementService(
+        ServiceLocator::get(PaymentClientRepository::class),
+        ServiceLocator::get(StatementRepository::class)
     );
 });
 

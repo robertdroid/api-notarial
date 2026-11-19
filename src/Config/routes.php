@@ -10,6 +10,7 @@ use App\Module\Subdivision\Controller\SubdivisionController;
 use App\Module\DeedType\Controller\DeedTypeController;
 use App\Module\PaymentTax\Controller\PaymentTaxController;
 use App\Module\PaymentClient\Controller\PaymentClientController;
+use App\Module\PaymentStatement\Controller\PaymentStatementController;
 use App\Module\PaymentProcedure\Controller\PaymentProcedureController;
 use App\Module\PaymentProcedureTax\Controller\PaymentProcedureTaxController;
 use App\Module\PaymentTransaction\Controller\PaymentTransactionController;
@@ -85,6 +86,7 @@ $router->delete('/api/v3/payment-procedures/{id}/taxes/{taxId}', [PaymentProcedu
 // Payment Clients routes (protected)
 $router->get('/api/v3/payment-clients', [PaymentClientController::class, 'index'])->withMiddleware('auth');
 $router->get('/api/v3/payment-clients/{id}', [PaymentClientController::class, 'show'])->withMiddleware('auth');
+$router->get('/api/v3/payment-clients/{id}/statement', [PaymentStatementController::class, 'show'])->withMiddleware('auth');
 $router->post('/api/v3/payment-clients', [PaymentClientController::class, 'store'])->withMiddleware('auth');
 $router->put('/api/v3/payment-clients/{id}', [PaymentClientController::class, 'update'])->withMiddleware('auth');
 

@@ -244,10 +244,14 @@ There is no DELETE endpoint; deactivate with `status: 2`.
 | GET | `/api/v3/payment-clients/{id}` | Get payment client by ID |
 | POST | `/api/v3/payment-clients` | Create payment client (201, no body) |
 | PUT | `/api/v3/payment-clients/{id}` | Partial update; deactivate with `status: 2` (204) |
+| GET | `/api/v3/payment-clients/{id}/statement` | Account statement: charges, payments and balance (optional `from` / `to`) |
 
 Query parameters for list:
 - `status` (optional): 1 = active, 2 = inactive (any other value returns 400)
 - `name` (optional): partial match, case- and accent-insensitive
+
+Query parameters for statement:
+- `from`, `to` (optional): `YYYY-MM-DD`, inclusive days. Invalid dates or `to` before `from` return 400 with `errors`
 
 Client names are not unique. There is no DELETE endpoint; deactivate with `status: 2`.
 
@@ -308,6 +312,15 @@ docker-compose exec api ./vendor/bin/phpunit
 ```
 
 ## Changelog
+
+### 2026-11-19 - Feature: Payment client statement
+- New read-only `GET /api/v3/payment-clients/{id}/statement?from=&to=` (module `PaymentStatement`); same response fields as the v1 `client-statement`, only the route changes
+- Differences vs v1: cancelled transactions no longer count (list, totals, balance); inactive clients can be consulted; `to` covers the whole last day; invalid dates return `400` with `errors` per field instead of being silently corrected or ignored
+- Totals are computed in integer cents; the previous balance (`pendingAmount`) is summed in SQL, only when `from` is sent
+- A payment with no date appears (and adds up) only when no date filter is sent
+- No DB migration. Performance relies on the `(id_notary, id_client)` indexes; `payments_payments` gets its index from the pending `payments_payments_innodb_and_indexes` migration (spec 17): apply it before production
+- Endpoint added:
+  - `GET /api/v3/payment-clients/{id}/statement`
 
 ### 2026-11-16 - Feature: User password change
 - Two endpoints set a new password (no current password) and return `204`; passwords are bcrypt (cost 10), never returned
