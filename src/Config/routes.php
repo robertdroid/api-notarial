@@ -14,6 +14,7 @@ use App\Module\PaymentProcedure\Controller\PaymentProcedureController;
 use App\Module\PaymentProcedureTax\Controller\PaymentProcedureTaxController;
 use App\Module\PaymentTransaction\Controller\PaymentTransactionController;
 use App\Module\Payment\Controller\PaymentController;
+use App\Module\Receipt\Controller\ReceiptController;
 use App\Module\User\Controller\UserController;
 use App\Module\Notary\Controller\NotaryController;
 use App\Module\Me\Controller\MeController;
@@ -98,6 +99,12 @@ $router->get('/api/v3/payments', [PaymentController::class, 'showByUuid'])->with
 $router->get('/api/v3/payments/{id}', [PaymentController::class, 'show'])->withMiddleware('auth');
 $router->post('/api/v3/payments', [PaymentController::class, 'store'])->withMiddleware('auth');
 $router->put('/api/v3/payments/{id}', [PaymentController::class, 'update'])->withMiddleware('auth');
+
+// Receipts in PDF (protected). The uuid routes have an extra segment, so they never collide with /{id}/receipt
+$router->get('/api/v3/payment-transactions/{id}/receipt', [ReceiptController::class, 'transaction'])->withMiddleware('auth');
+$router->get('/api/v3/payment-transactions/uuid/{uuid}/receipt', [ReceiptController::class, 'transactionByUuid'])->withMiddleware('auth');
+$router->get('/api/v3/payments/{id}/receipt', [ReceiptController::class, 'payment'])->withMiddleware('auth');
+$router->get('/api/v3/payments/uuid/{uuid}/receipt', [ReceiptController::class, 'paymentByUuid'])->withMiddleware('auth');
 
 // Users routes (protected)
 $router->get('/api/v3/users', [UserController::class, 'index'])->withMiddleware('auth');

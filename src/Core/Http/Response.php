@@ -92,6 +92,25 @@ class Response
         );
     }
 
+    /**
+     * Binary PDF built entirely in memory. The file name is server-built, but it is validated
+     * anyway so it can never inject header content.
+     */
+    public static function pdf(string $binary, string $filename): self
+    {
+        if (preg_match('/^[A-Za-z0-9._-]+$/D', $filename) !== 1) {
+            throw new \InvalidArgumentException('Invalid file name');
+        }
+
+        return new self($binary, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Length' => (string) strlen($binary),
+            'Content-Disposition' => 'inline; filename="' . $filename . '"',
+            'Cache-Control' => 'no-store',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
     public function getBody(): mixed
     {
         return $this->body;
