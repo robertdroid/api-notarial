@@ -20,7 +20,13 @@ use App\Module\PaymentTax\Service\PaymentTaxService;
 use App\Module\PaymentClient\Repository\PaymentClientRepository;
 use App\Module\PaymentClient\Service\PaymentClientService;
 use App\Module\PaymentStatement\Repository\StatementRepository;
+use App\Module\PaymentStatement\Renderer\StatementHtmlBuilder;
+use App\Module\PaymentStatement\Renderer\StatementPdfRenderer;
 use App\Module\PaymentStatement\Service\PaymentStatementService;
+use App\Module\PaymentStatement\Service\StatementLedgerBuilder;
+use App\Module\PaymentStatement\Service\StatementPdfService;
+use App\Shared\Pdf\DompdfDocumentRenderer;
+use App\Shared\Pdf\LogoDataUriReader;
 use App\Module\PaymentProcedure\Repository\PaymentProcedureRepository;
 use App\Module\PaymentProcedure\Service\PaymentProcedureService;
 use App\Module\PaymentProcedureTax\Repository\PaymentProcedureTaxRepository;
@@ -193,6 +199,30 @@ ServiceLocator::register(ReceiptService::class, function () {
 
 ServiceLocator::register(ReceiptPdfRenderer::class, function () {
     return new ReceiptPdfRenderer(new ReceiptHtmlBuilder(), new QrCodeGenerator());
+});
+
+ServiceLocator::register(StatementLedgerBuilder::class, fn () => new StatementLedgerBuilder());
+
+ServiceLocator::register(LogoDataUriReader::class, function () {
+    return new LogoDataUriReader(ServiceLocator::get(NotaryService::class));
+});
+
+ServiceLocator::register(StatementPdfService::class, function () {
+    return new StatementPdfService(
+        ServiceLocator::get(PaymentStatementService::class),
+        ServiceLocator::get(PaymentClientRepository::class),
+        ServiceLocator::get(NotaryService::class),
+        ServiceLocator::get(LogoDataUriReader::class),
+        ServiceLocator::get(StatementLedgerBuilder::class),
+        new AmountInWordsConverter()
+    );
+});
+
+ServiceLocator::register(StatementPdfRenderer::class, function () {
+    return new StatementPdfRenderer(
+        new StatementHtmlBuilder(),
+        new DompdfDocumentRenderer(__DIR__ . '/Module/PaymentStatement/Renderer/templates')
+    );
 });
 
 ServiceLocator::register(UserRepository::class, function () {
