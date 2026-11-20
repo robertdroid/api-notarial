@@ -93,6 +93,20 @@ class PaymentRepository
     }
 
     /**
+     * Physical delete. Unlike update(), rowCount() is reliable here:
+     * 0 rows means the payment does not exist or belongs to another notary.
+     */
+    public function delete(int $id, int $notaryId): bool
+    {
+        $stmt = $this->db->prepare(
+            'DELETE FROM payments_payments WHERE id_payment = :id AND id_notary = :notaryId'
+        );
+        $stmt->execute(['id' => $id, 'notaryId' => $notaryId]);
+
+        return $stmt->rowCount() > 0;
+    }
+
+    /**
      * @param array<string, mixed> $params
      */
     private function fetchOne(string $where, array $params): ?Payment

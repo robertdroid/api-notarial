@@ -330,4 +330,28 @@ final class PaymentServiceTest extends TestCase
 
         $this->service->update(self::ID, $this->updateDto(), self::NOTARY);
     }
+
+    public function testDeleteRemovesPayment(): void
+    {
+        $this->repository->expects($this->once())
+            ->method('delete')->with(self::ID, self::NOTARY)->willReturn(true);
+        // No pre-lookup (ADR-001) and no client-status restriction (scenario 8)
+        $this->repository->expects($this->never())->method('findByIdAndNotary');
+        $this->clientRepository->expects($this->never())->method('findByIdAndNotary');
+
+        $this->service->delete(self::ID, self::NOTARY);
+    }
+
+    public function testDeleteThrowsNotFoundWhenNothingDeleted(): void
+    {
+        $this->repository->expects($this->once())
+            ->method('delete')->with(self::ID, self::NOTARY)->willReturn(false);
+
+        try {
+            $this->service->delete(self::ID, self::NOTARY);
+            $this->fail('Expected PaymentException');
+        } catch (PaymentException $e) {
+            $this->assertSame(PaymentError::PaymentNotFound, $e->error);
+        }
+    }
 }

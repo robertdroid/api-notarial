@@ -100,6 +100,22 @@ final class PaymentController
         return Response::json(PaymentResponse::fromEntity($payment));
     }
 
+    public function destroy(Request $request): Response
+    {
+        $id = $this->parseId($request);
+        if ($id instanceof Response) {
+            return $id;
+        }
+
+        try {
+            $this->service->delete($id, $request->getNotaryId());
+        } catch (PaymentException $e) {
+            return $this->errorResponse($e->error);
+        }
+
+        return Response::noContent();
+    }
+
     private function parseId(Request $request): int|Response
     {
         $id = filter_var($request->getRouteParam('id'), FILTER_VALIDATE_INT);

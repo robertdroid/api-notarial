@@ -81,6 +81,14 @@ final class PaymentService
         return $this->getById($id, $notaryId);
     }
 
+    public function delete(int $id, int $notaryId): void
+    {
+        // No active-client check on purpose: a payment can be deleted whatever the client status (scenario 8)
+        if (!$this->repository->delete($id, $notaryId)) {
+            throw new PaymentException(PaymentError::PaymentNotFound);
+        }
+    }
+
     private function requireActiveClient(int $clientId, int $notaryId): void
     {
         $client = $this->clientRepository->findByIdAndNotary($clientId, $notaryId)
