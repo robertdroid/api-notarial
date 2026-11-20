@@ -1819,6 +1819,103 @@ paths:
               example:
                 error: "Client not found"
 
+  /payment-clients/{id}/statement/pdf:
+    get:
+      tags:
+        - PaymentClients
+      summary: Download a payment client's account statement as a PDF
+      description: |
+        Returns the account statement of a client as a PDF (`application/pdf`, shown inline, letter size).
+        It is the same statement as `GET /payment-clients/{id}/statement`, built in the same process from the same
+        service, so `pendingAmount`, `totalCharges`, `totalPayments` and `balance` are exactly the JSON values.
+        Read-only: nothing is stored or cached.
+
+        **Document**
+        - Notary header (logo only if the notary has one), title `ESTADO DE CUENTA`, period and issue date
+        - Period: `Del dd/mm/yyyy al dd/mm/yyyy`, `Desde dd/mm/yyyy`, `Hasta dd/mm/yyyy` or `Todos los movimientos`
+        - Client name, phone and email (a dash when empty)
+        - One chronological ledger with a running balance. Columns: Fecha, Folio, Concepto, Cargo, Abono, Saldo
+          - Charges (transactions): folio `T-000123`, concept `procedure – reference` (or whichever exists, or a dash), amount in **Cargo**
+          - Payments: folio `C-000123`, concept = the payment comment (or `Abono`), amount in **Abono**
+          - A first row `Saldo anterior` appears only when `from` is sent
+          - Order: date (day, not time), charge before payment on the same day, then `id`. Payments with no date (only without filters) go last with a dash as date. Within the same day the order can differ from the JSON lists; totals and balance never do
+          - The table header repeats on every page; there is no row limit
+          - With no movements the ledger shows `Sin movimientos en el periodo` and the balance is still shown
+        - Summary: previous balance (only with `from`), total charges, total payments and **final balance**
+        - Legend: `SALDO PENDIENTE` (balance > 0), `SALDO A FAVOR` (balance < 0, the notary owes the client; the amount is shown positive) or `SIN ADEUDO` (zero), with the amount in words except for `SIN ADEUDO`
+        - Footer on every page: `Generado el dd/mm/yyyy HH:MM by notarial.devrob.net - Pagina n` (America/Mexico_City)
+
+        **Rules**
+        - Cancelled transactions are not shown (no row, no watermark), as in the JSON statement
+        - An **inactive** client can be consulted. 404 only if the client doesn't exist or belongs to another notary (same message in both cases)
+        - `from` / `to` follow the same rules and errors as the JSON statement
+        - The `id` is validated first, then `from` / `to`, then the client lookup
+        - The PDF is built completely in memory before any byte is sent: a failure is always a JSON `500`, never a partial PDF
+        - Very large statements need memory: with PHP's default `memory_limit` of 128M the render starts to fail at about 500 ledger rows; above 400 rows a warning is logged
+      operationId: getPaymentClientStatementPdf
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Payment client ID. Not positive returns 404
+          schema:
+            type: integer
+        - name: from
+          in: query
+          required: false
+          description: Start of the range (inclusive), `YYYY-MM-DD`
+          schema:
+            type: string
+            format: date
+          example: "2026-03-01"
+        - name: to
+          in: query
+          required: false
+          description: End of the range (inclusive), `YYYY-MM-DD`. Must not be before `from`
+          schema:
+            type: string
+            format: date
+          example: "2026-03-31"
+      responses:
+        '200':
+          $ref: '#/components/responses/StatementPdf'
+        '400':
+          description: Invalid ID format, or `from` / `to` is not a valid date or `to` is before `from`. No PDF is generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidId:
+                  summary: Non-numeric ID
+                  value:
+                    error: "Invalid ID format"
+                invalidDates:
+                  summary: Invalid dates
+                  value:
+                    error: "Validation failed"
+                    errors:
+                      from: "From must be a valid date in YYYY-MM-DD format"
+                      to: "To must not be before from"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Client not found (doesn't exist, belongs to another notary, or the ID is not positive)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Client not found"
+        '500':
+          $ref: '#/components/responses/StatementGenerationError'
+
   /payment-transactions:
     get:
       tags:
@@ -3784,6 +3881,30 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
           example:
             error: "Could not generate receipt"
+    StatementPdf:
+      description: Account statement as a PDF document (letter size, generated in memory)
+      headers:
+        Content-Disposition:
+          description: 'Inline, with a server-built file name such as `estado-de-cuenta-C-000005.pdf`'
+          schema:
+            type: string
+        Cache-Control:
+          description: Always `no-store`; statements are never cached
+          schema:
+            type: string
+      content:
+        application/pdf:
+          schema:
+            type: string
+            format: binary
+    StatementGenerationError:
+      description: The PDF could not be generated (for example the notary of the token is inactive). No partial PDF is ever sent
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Could not generate statement"
     DeedUnauthorized:
       description: Missing, invalid or expired token
       content:

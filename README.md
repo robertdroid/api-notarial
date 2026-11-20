@@ -245,6 +245,7 @@ There is no DELETE endpoint; deactivate with `status: 2`.
 | POST | `/api/v3/payment-clients` | Create payment client (201, no body) |
 | PUT | `/api/v3/payment-clients/{id}` | Partial update; deactivate with `status: 2` (204) |
 | GET | `/api/v3/payment-clients/{id}/statement` | Account statement: charges, payments and balance (optional `from` / `to`) |
+| GET | `/api/v3/payment-clients/{id}/statement/pdf` | The same statement as a PDF (`application/pdf`, inline; optional `from` / `to`) |
 
 Query parameters for list:
 - `status` (optional): 1 = active, 2 = inactive (any other value returns 400)
@@ -252,6 +253,8 @@ Query parameters for list:
 
 Query parameters for statement:
 - `from`, `to` (optional): `YYYY-MM-DD`, inclusive days. Invalid dates or `to` before `from` return 400 with `errors`
+
+The statement PDF takes the same `from` / `to` and shows a single ledger (charges `T-000123` and payments `C-000123`) with a running balance, a summary and a legend (`SALDO PENDIENTE`, `SALDO A FAVOR` or `SIN ADEUDO`). Its totals are the JSON ones. The file is named `estado-de-cuenta-C-000005.pdf`.
 
 Client names are not unique. There is no DELETE endpoint; deactivate with `status: 2`.
 
@@ -312,6 +315,15 @@ docker-compose exec api ./vendor/bin/phpunit
 ```
 
 ## Changelog
+
+### 2026-11-20 - Feature: Payment client statement PDF
+- New read-only `GET /api/v3/payment-clients/{id}/statement/pdf?from=&to=` (module `PaymentStatement`): the spec 19 statement as a PDF with a chronological ledger and running balance, summary, balance legend and amount in words
+- The PDF is built from `PaymentStatementService` in the same process, so its totals and balance are the JSON ones; cancelled transactions are not shown
+- New `src/Shared/Pdf/` (`DompdfDocumentRenderer`, `LogoDataUriReader`) holds the safe Dompdf setup. The receipts still use their own copy; moving them over is optional and tracked separately
+- Dompdf needs about 0.25 MB per ledger row: with PHP's default `memory_limit` (128M) a statement fails at roughly 500 rows (a PHP fatal error, not a JSON 500). A warning is logged above 400 rows. Raise `memory_limit` if clients with that many movements exist
+- No DB migration
+- Endpoint added:
+  - `GET /api/v3/payment-clients/{id}/statement/pdf`
 
 ### 2026-11-19 - Feature: Payment client statement
 - New read-only `GET /api/v3/payment-clients/{id}/statement?from=&to=` (module `PaymentStatement`); same response fields as the v1 `client-statement`, only the route changes
