@@ -101,6 +101,7 @@ $router->get('/api/v3/payments', [PaymentController::class, 'showByUuid'])->with
 $router->get('/api/v3/payments/{id}', [PaymentController::class, 'show'])->withMiddleware('auth');
 $router->post('/api/v3/payments', [PaymentController::class, 'store'])->withMiddleware('auth');
 $router->put('/api/v3/payments/{id}', [PaymentController::class, 'update'])->withMiddleware('auth');
+$router->delete('/api/v3/payments/{id}', [PaymentController::class, 'destroy'])->withMiddleware('auth');
 
 // Receipts in PDF (protected). The uuid routes have an extra segment, so they never collide with /{id}/receipt
 $router->get('/api/v3/payment-transactions/{id}/receipt', [ReceiptController::class, 'transaction'])->withMiddleware('auth');

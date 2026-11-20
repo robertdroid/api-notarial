@@ -2405,6 +2405,54 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
               example:
                 error: "Payment not found"
+    delete:
+      tags:
+        - Payments
+      summary: Delete a payment
+      description: |
+        Permanently deletes a payment (physical delete, irreversible, no audit trail).
+
+        - The client statement and receipts stop including it: `GET /payments/{id}` and
+          `GET /payments/{id}/receipt` return 404 afterwards.
+        - The `uuid` becomes free: a later `POST /payments` with the same uuid creates a new payment.
+        - The client is **not** required to be active.
+
+        Returns 404 if the payment doesn't exist or belongs to a different notary.
+      operationId: deletePayment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Payment ID
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Payment deleted (no body)
+        '400':
+          description: Invalid ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid ID format"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Payment not found (or `id` <= 0)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Payment not found"
 
   /payment-transactions/{id}/receipt:
     get:
