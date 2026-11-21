@@ -15,6 +15,7 @@ use App\Module\Receipt\DTO\ReceiptClient;
 use App\Module\Receipt\DTO\ReceiptNotary;
 use App\Shared\Pdf\DompdfDocumentRenderer;
 use Dompdf\Dompdf;
+use Dompdf\Frame;
 use Dompdf\Options;
 use PHPUnit\Framework\TestCase;
 
@@ -127,6 +128,57 @@ final class StatementPdfRendererTest extends TestCase
         $pdf = $this->renderer->render($this->data($this->rows(3, str_repeat('Texto-muy-largo-sin-espacios-áéíóú-', 30))));
 
         $this->assertStringStartsWith('%PDF-', $pdf);
+    }
+
+    /**
+     * BUG_001: a text with no spaces and no hyphens (a URL, a pasted folio) used to widen the table past the
+     * page and push the amount columns out of it. The test above cannot see that: its text has hyphens.
+     *
+     * @return array<string, array{string, string}> concept, client name
+     */
+    public static function unbreakableTexts(): array
+    {
+        return [
+            '60 characters' => [str_repeat('Z', 60), 'Cliente'],
+            '150 characters' => [str_repeat('A', 150), 'Cliente'],
+            'long URL' => ['http://ejemplo.com/' . str_repeat('b', 120), 'Cliente'],
+            'long client name' => ['Abono', str_repeat('N', 200)],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('unbreakableTexts')]
+    public function testUnbreakableTextStaysInsideThePage(string $concept, string $clientName): void
+    {
+        $html = (new StatementHtmlBuilder())->build($this->data($this->rows(3, $concept), clientName: $clientName));
+
+        // Letter is 612 pt wide and the @page side margins are 40 px (30 pt)
+        $this->assertLessThanOrEqual(612 - 30 + 1, $this->rightmostEdge($html));
+    }
+
+    /** Lays the HTML out with Dompdf and returns the rightmost x (in pt) any frame reaches. */
+    private function rightmostEdge(string $html): float
+    {
+        $dompdf = new Dompdf(new Options([
+            'isRemoteEnabled' => false,
+            'defaultFont' => 'DejaVu Sans',
+            'tempDir' => sys_get_temp_dir(),
+            'fontCache' => sys_get_temp_dir(),
+            'chroot' => __DIR__ . '/../../../../src/Module/PaymentStatement/Renderer/templates',
+        ]));
+        $max = 0.0;
+        // The frame tree is released once render() ends, so each frame is measured while it is painted
+        $dompdf->setCallbacks([[
+            'event' => 'end_frame',
+            'f' => static function (Frame $frame) use (&$max): void {
+                $box = $frame->get_border_box();
+                $max = max($max, (float) $box['x'] + (float) $box['w']);
+            },
+        ]]);
+        $dompdf->setPaper('letter', 'portrait');
+        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->render();
+
+        return $max;
     }
 
     public function testMaliciousMarkupDoesNotBreakRendering(): void

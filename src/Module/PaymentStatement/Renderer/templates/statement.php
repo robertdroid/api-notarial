@@ -39,20 +39,25 @@ $addressLine = trim($notary->address . ($notary->city !== '' && $notary->address
     .notary-name { font-size: 15px; font-weight: bold; color: #1f3a5f; }
     .section-title { font-size: 10px; font-weight: bold; color: #1f3a5f; text-transform: uppercase;
         border-bottom: 1px solid #c8d0da; padding-bottom: 3px; margin: 16px 0 6px 0; letter-spacing: 1px; }
-    .kv td { padding: 3px 0; vertical-align: top; }
-    .kv td.k { width: 130px; color: #666; }
-    .ledger { margin-top: 6px; }
+    /* Fixed layouts: a long text with no spaces (a URL, a pasted folio) is cut inside its cell instead of
+       widening the table past the page and pushing the amount columns out of it */
+    .kv { table-layout: fixed; }
+    .kv td { padding: 3px 0; vertical-align: top; word-wrap: break-word; }
+    .kv td.k { width: 18%; color: #666; }
+    .ledger { margin-top: 6px; table-layout: fixed; }
     .ledger thead { display: table-header-group; }
     .ledger tr { page-break-inside: avoid; }
     .ledger th { background: #eef1f5; text-align: left; padding: 5px 6px; font-size: 10px; border-bottom: 1px solid #c8d0da; }
     .ledger td { padding: 5px 6px; border-bottom: 1px solid #e3e7ec; vertical-align: top; word-wrap: break-word; }
     .ledger tr.opening td { background: #f5f7fa; font-style: italic; }
     .ledger tr.empty td { text-align: center; color: #666; padding: 12px 6px; }
-    .date { width: 62px; }
-    .folio { width: 62px; }
+    /* Percentages on purpose: Dompdf ignores absolute widths (px) in table-layout:fixed. Only the header row
+       counts; Concepto takes the rest. The amount columns fit up to $99,999,999.99 */
+    .date { width: 12%; }
+    .folio { width: 10%; }
     .num { text-align: right; }
-    .amt { width: 78px; }
-    .bal { width: 88px; }
+    .amt { width: 15%; }
+    .bal { width: 15%; }
     .closing { page-break-inside: avoid; margin-top: 16px; }
     .totals td { padding: 3px 6px; }
     .totals .label { text-align: right; color: #666; }
