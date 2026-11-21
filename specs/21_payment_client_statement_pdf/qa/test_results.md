@@ -1,15 +1,15 @@
 # Resultados de Pruebas: Estado de Cuenta de Cliente en PDF
 
 ## Resumen
-- **Estado:** RECHAZADO
-- **Tests Ejecutados:** 1080 unitarias/humo + 23 escenarios del PO + 44 comparaciones PDF contra JSON + 20 casos de API adicionales
-- **Tests Pasados:** 1080/1080 unitarias; 23/23 escenarios del PO (el 23 con reserva por BUG_002); 44/44 comparaciones PDF contra JSON. El **caso edge de texto largo FALLA** (BUG_001)
-- **Bugs Encontrados:** 2 (ambos de severidad Media, abiertos en `bugs/open/`)
+- **Estado:** APROBADO (segunda ronda, 2026-11-21; la primera, 2026-11-20, fue RECHAZADO)
+- **Tests Ejecutados:** 1084 unitarias/humo + 23 escenarios del PO + 44 comparaciones PDF contra JSON (repetidas tras el fix) + 5 casos de verificación de BUG_001 + 20 casos de API adicionales
+- **Tests Pasados:** 1084/1084 unitarias; 23/23 escenarios del PO; 44/44 comparaciones PDF contra JSON; 5/5 casos de BUG_001
+- **Bugs Encontrados:** 2 en la primera ronda. BUG_001 corregido y verificado (cerrado). BUG_002 cerrado como problema de ambiente por decisión del usuario, sin re-probar (se probará más adelante en otras condiciones)
 
-Los 23 escenarios del PO pasan. El rechazo se debe a dos bugs abiertos: uno de maquetación con texto largo (BUG_001, incumple un caso edge del PO y un criterio técnico) y uno de robustez con volumen alto (BUG_002, incumple el escenario 23 en un caso extremo y requiere decisión del PO).
+Segunda ronda: el fix de BUG_001 (`a0bc058`) se verificó por API, con medición del PDF y con la regresión completa. Ver "Segunda ronda" al final. El estado de abajo en los criterios marcados como FAIL o "con reserva" corresponde a la primera ronda y se actualiza allí.
 
 ## Pruebas Unitarias
-- **Resultado:** PASS. `OK, but there were issues!`: 1080 tests, 2163 assertions, 1 PHPUnit Deprecation (ajena a la feature)
+- **Resultado (ronda 1):** PASS. `OK, but there were issues!`: 1080 tests, 2163 assertions, 1 PHPUnit Deprecation (ajena a la feature)
 - Incluye sin modificar las pruebas de `Receipt` y de `PaymentStatement` (JSON). Ningún archivo de `src/Module/Receipt`, `PaymentStatementService`, `ClientStatement`, `StatementResponse` ni `StatementRepository` cambió en la rama
 - **Cobertura:** no medida (no hay Xdebug/pcov configurado en el contenedor)
 - **Observación:** `testLongTextInACellDoesNotBreakTheRender` usa un texto con guiones y solo verifica que se genere un PDF. No habría detectado BUG_001
@@ -60,8 +60,8 @@ Los 23 escenarios del PO pasan. El rechazo se debe a dos bugs abiertos: uno de m
 | Cobro sin comentario | PASS | "Abono" |
 | HTML y caracteres especiales | PASS | `<script>`, `<img onerror>`, `&`, comillas y `<b>` salen como texto literal (nombre, teléfono, correo, referencia, comentario) |
 | Decimales de punto flotante | PASS | 100 + 10.10 + 20.20 − 30.30 − 0.01 = $99.99 exacto |
-| **Texto largo ajustado en su celda** | **FAIL** | **BUG_001**: con ≥ 60 caracteres sin espacios la tabla se sale de la hoja y se cortan Abono y Saldo |
-| Rendimiento | Con reserva | 150 filas: 6.3 s. 450 filas: 7.5 s (con aviso en log). 700 filas: fatal de memoria, **BUG_002** |
+| Texto largo ajustado en su celda | PASS (ronda 2) | Ronda 1 FAIL (BUG_001). Corregido en `a0bc058`: 60/150 caracteres, URL larga y nombre de 200 se parten dentro de su celda; borde derecho máximo 577.8 pt (límite 582) |
+| Rendimiento | Con reserva (ambiente) | 150 filas: 6.3 s. 450 filas: 7.5 s (con aviso en log). 700 filas: fatal de memoria en el contenedor de desarrollo, BUG_002 tomado como problema de ambiente, se re-probará en otras condiciones |
 
 ### Técnicos
 | # | Criterio | Estado | Notas |
@@ -77,14 +77,14 @@ Los 23 escenarios del PO pasan. El rechazo se debe a dos bugs abiertos: uno de m
 | 9 | Renderer: footer en todas las páginas con `page_script` | PASS | 6 de 6 páginas |
 | 10 | Renderer: todo valor de usuario escapado, solo data URIs | PASS | Revisión de la plantilla (todos pasan por `H::escape`/`H::orDash`) y prueba con XSS |
 | 11 | Renderer: `thead` repetido, `tr` sin partir, resumen y leyenda juntos al final | PASS | Verificado en 6 páginas |
-| 12 | Renderer: **texto largo ajustado en la celda** | **FAIL** | BUG_001. Falta `table-layout: fixed` |
+| 12 | Renderer: texto largo ajustado en la celda | PASS (ronda 2) | Ronda 1 FAIL (BUG_001). `table-layout: fixed` con anchos en porcentaje y prueba de regresión `testUnbreakableTextStaysInsideThePage` (falla sin el fix, pasa con él) |
 | 13 | Renderer: saldo negativo con signo `-`, "SALDO A FAVOR" con valor absoluto, sin QR ni marca de agua ni cancelados | PASS | |
 | 14 | Tests: suite verde con pruebas de Receipt y PaymentStatement sin modificar | PASS | 1080/1080 |
 | 15 | Código: `strict_types`, PSR-12, Controller delega, sin cambios en Receipt | PASS | Todos los `.php` de clase tienen `declare(strict_types=1)`. La plantilla `statement.php` no, igual que `receipt.php` (convención del proyecto, no se considera defecto) |
 | 16 | Performance: sin N+1, spike documentado, `memory_limit` documentado, aviso en log > 400 filas | PASS | Aviso confirmado con 450 y 700 filas |
 | 17 | Performance: "Sin paginación ni límite" (decisión del PO) | Con reserva | Cumple lo pedido, pero ver BUG_002: ADR-005 sigue abierta |
 | 18 | Seguridad: JWT, multi-tenant, no se revela otra notaría, `Content-Disposition` seguro, `no-store`, solo lectura | PASS | |
-| 19 | Seguridad: no exponer rutas internas en errores | **FAIL (BUG_002)** | Con `display_errors=1` (contenedor sin `php.ini`) el fatal de memoria muestra `/var/www/html/vendor/dompdf/...` en una respuesta 200 |
+| 19 | Seguridad: no exponer rutas internas en errores | Ambiente (BUG_002, sin re-probar) | Con `display_errors=1` (contenedor sin `php.ini`) el fatal de memoria muestra `/var/www/html/vendor/dompdf/...` en una respuesta 200. Es de configuración del ambiente y afecta a cualquier endpoint; con `display_errors=0` o `php.ini-production` el cuerpo sale vacío (comprobado por desarrollo). Se re-probará en otras condiciones |
 
 ## Pruebas de API
 
@@ -111,8 +111,8 @@ Los 23 escenarios del PO pasan. El rechazo se debe a dos bugs abiertos: uno de m
 | Token inválido | `abc.def.ghi` | 401 | 401 `Token inválido o expirado` | PASS |
 | Notaría del token inactiva | cliente existente | 500 JSON, sin PDF | 500 `Could not generate statement`, sin `Content-Disposition` | PASS |
 | Notaría inactiva, cliente inexistente | cliente 99999 | 404 | 404 `Client not found` | PASS |
-| Texto largo sin espacios (60 / 150 caracteres) | referencia/comentario | ajustado en celda | Tabla desborda la hoja, se pierden Abono y Saldo | **FAIL (BUG_001)** |
-| 700 filas | cliente con 700 trámites, 128M | 500 JSON | **200** con HTML "Fatal error" y ruta del servidor | **FAIL (BUG_002)** |
+| Texto largo sin espacios (60 / 150 caracteres) | referencia/comentario | ajustado en celda | Ronda 1: la tabla desbordaba la hoja. Ronda 2: se parte en la celda, importes visibles, máx. 577.8 pt | PASS (ronda 2, BUG_001 cerrado) |
+| 700 filas | cliente con 700 trámites, 128M | 500 JSON | 200 con HTML "Fatal error" y ruta del servidor (contenedor sin `php.ini`) | Ambiente (BUG_002, sin re-probar) |
 
 ## Multi-tenancy
 | Escenario | Estado | Notas |
@@ -124,7 +124,7 @@ Los 23 escenarios del PO pasan. El rechazo se debe a dos bugs abiertos: uno de m
 | Encabezado del PDF | PASS | Cada PDF muestra los datos de la notaría del token (notaría 1 con logo; notaría 2 sin logo) |
 | Notaría inactiva en el token con cliente inexistente | PASS | 404 antes de consultar la notaría |
 
-## Conclusión
+## Conclusión de la primera ronda (2026-11-20, superada por la segunda ronda)
 La feature cumple los 23 escenarios del PO, la consistencia total con el JSON de la spec 19 (44/44 casos con datos reales), el multi-tenant, el solo-lectura y la suite completa (1080 tests). El PDF se ve profesional: acentos, logo, saldo corrido, leyendas, importe con letra, encabezado repetido y footer correctos.
 
 **Se rechaza** porque hay dos bugs abiertos:
@@ -132,9 +132,40 @@ La feature cumple los 23 escenarios del PO, la consistencia total con el JSON de
 1. **BUG_001 (Media)**: un texto de 60 o más caracteres seguidos sin espacios en una referencia o comentario desborda la tabla y deja fuera de la hoja las columnas de importes. Incumple el caso edge del PO y un criterio técnico. La prueba existente no lo detecta porque usa guiones. Fix probable: `table-layout: fixed` con anchos de columna en `.ledger` (y ajuste del nombre del cliente).
 2. **BUG_002 (Media, requiere decisión del PO)**: con unas 600 filas o más, el agotamiento de memoria responde **200** con el HTML del error de PHP y la ruta del servidor, no el 500 JSON del escenario 23. Está documentado como riesgo (ADR-005) pero la descripción de "500 vacío" no coincide con lo observado. Requiere elegir entre subir `memory_limit`, un límite con 422 o paginar, y fijar `display_errors=0` en la imagen. Hoy no afecta a datos reales (máximo 6 trámites por cliente en desarrollo).
 
-**No se mergea el PR #21.** Tras la corrección de BUG_001 (y la decisión sobre BUG_002), pasar a `bugs/resolved/` para su verificación y cierre.
+**No se mergeó el PR #21 en la primera ronda.** Tras la corrección de BUG_001 (y la decisión sobre BUG_002), pasar a `bugs/resolved/` para su verificación y cierre.
 
 Limpieza: los datos de prueba de la notaría 2 se eliminaron (checksums de tablas idénticos a los originales) y la notaría 2 quedó activa. Quedaron en los contenedores dos archivos temporales sin riesgo: `/tmp/mint.php` en `notarial-api` y `/tmp/fixtures.sql`, `/tmp/fx2.sql`, `/tmp/fx3.sql` en `notarial-db`.
 
+## Segunda ronda (2026-11-21)
+
+**Alcance:** verificar BUG_001 (corregido en `a0bc058`) y regresión. BUG_002 se toma como problema de ambiente por decisión del usuario y no se re-probó.
+
+| Prueba | Resultado |
+|--------|-----------|
+| Suite completa | PASS. 1084 tests, 2171 assertions, 1 PHPUnit Deprecation ajena a la feature (4 pruebas nuevas de regresión) |
+| 60 caracteres seguidos en referencia | PASS. 2 líneas en Concepto, importes visibles |
+| 150 caracteres seguidos en referencia | PASS. 5 líneas, importes visibles |
+| URL de 150 caracteres en comentario de un cobro | PASS. Se parte en la celda; Abono $34.56 y Saldo $1,200.00 visibles |
+| Nombre de 200 caracteres, teléfono de 20, correo de 85 | PASS. Se ajusta en 3 líneas dentro de la hoja |
+| Importes `$99,000,000.00` y `$99,999,999.99` | PASS. Seis columnas completas |
+| Multipágina (150 filas) | PASS. 6 páginas, encabezado repetido, footer en todas |
+| Borde derecho máximo del texto (`pdftotext -bbox`) | 577.8 pt en los 5 PDF; límite 582 pt |
+| Regresión PDF contra JSON (spec 19) | PASS. 44/44 (22 clientes reales de la notaría 1, sin filtro y con rango): `totalCharges`, `totalPayments`, `balance` idénticos |
+| Solo lectura | PASS. `CHECKSUM TABLE` de `payments_clients`, `payments_transactions`, `payments_payments`, `payment_procedures` idéntico al inicial tras crear y borrar los fixtures; notaría 2 sin datos |
+
+**Observaciones no bloqueantes**
+- **Cosmética, anterior al fix:** los encabezados "Cargo", "Abono" y "Saldo" quedan alineados a la izquierda sobre importes alineados a la derecha (`.ledger th { text-align: left }` pesa más que `.num`). Ya estaba en `002a1d1`. Corrección sugerida: `.ledger th.num { text-align: right }`.
+- **Efecto aceptado del fix:** Concepto queda más angosto (~33 % del ancho útil, antes ~48 %).
+- **Entorno:** en esta ronda varias peticiones tardaron 60 s o más mientras el contenedor tenía otras peticiones en curso y procesos Apache en espera de disco (estado `D`); repetidas sin carga, el mismo cliente respondió en 6 s. No es del código.
+
+**Decisión: APROBADO.** BUG_001 verificado y cerrado (`bugs/closed/`). BUG_002 cerrado como problema de ambiente, con estos pendientes fuera de la spec 21:
+1. Ticket aparte: `display_errors=0` y `log_errors=1` en la imagen (`php.ini-production`).
+2. Confirmar `memory_limit` y `php.ini` de producción.
+3. Decisión del PO sobre ADR-005 (límite de filas, `memory_limit` o paginación) y re-prueba con ≥ ~600 filas.
+
+Riesgo aceptado: con ~600 filas o más y 128M no se obtiene el JSON del escenario 23. Máximo real hoy: 6 trámites por cliente.
+
+Limpieza: fixtures de la notaría 2 eliminados. Quedan archivos temporales sin riesgo en `/tmp` de `notarial-api` (`mint.php`, `srv.sh`, `dbg.php`, `php-prod.ini`, PDFs de prueba) y de `notarial-db` (`*.sql`): la comprobación de seguridad bloquea los `rm` desde esta sesión.
+
 ## Fecha
-2026-11-20
+Primera ronda: 2026-11-20. Segunda ronda: 2026-11-21

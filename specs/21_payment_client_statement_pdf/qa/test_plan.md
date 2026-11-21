@@ -35,3 +35,10 @@ Los datos reales de la notaría 1 se usaron solo para lecturas. Los escenarios q
 
 ## Criterio de salida
 Aprobado si: suite verde, 23 escenarios PASS, criterios técnicos cumplidos y sin bugs abiertos. Rechazado si hay bugs pendientes.
+
+## Segunda ronda (2026-11-21)
+Alcance: verificación de BUG_001 (commit `a0bc058`) y regresión. BUG_002 se toma como problema de ambiente por decisión del usuario y se re-probará más adelante en otras condiciones.
+- Suite completa (`phpunit`).
+- Fixtures en la notaría 2 (60/150 caracteres, URL larga, nombre de 200, importes de hasta `$99,999,999.99`, 150 filas) vía API; medición del borde derecho con `pdftotext -bbox` y revisión visual con `pdftoppm`.
+- Regresión PDF contra JSON en los 22 clientes reales de la notaría 1, sin filtro y con rango (44 casos).
+- Solo lectura: `CHECKSUM TABLE` antes y después; fixtures eliminados.

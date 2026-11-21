@@ -4,7 +4,7 @@
 **Media** (riesgo conocido, requiere decisión del PO/arquitecto: ADR-005 sigue abierta). Hoy no afecta a clientes reales (el máximo en la BD de desarrollo es 6 trámites por cliente), pero el endpoint no tiene límite de filas y el fallo es silencioso para el cliente HTTP.
 
 ## Estado
-Open (pendiente de decisión de producto, no solo de código)
+Closed como problema de ambiente (decisión del usuario, 2026-11-21): se vuelve a probar más adelante en otras condiciones
 
 ## Criterios incumplidos
 - PO, Escenario 23: "Falla al generar el PDF ... responde **500** JSON `{ "error": "Could not generate statement" }`".
@@ -72,3 +72,13 @@ Sin cambios de código. Se separó qué parte del reporte es del contenedor y cu
 - La documentación (`developer_notes.md`, README, OpenAPI) dice "fatal error, no JSON 500" y `developer_notes.md` habla de un "500 vacío": eso es correcto **en una configuración de producción**, no en el contenedor de desarrollo actual. Cuando se decida el límite, ajustar esas notas.
 
 **Recomendación:** bajar la severidad a **Baja** para esta spec (riesgo conocido y documentado, sin clientes reales cerca del umbral: máximo 6 trámites), mantener el bug abierto solo por la decisión del PO sobre el límite, y abrir aparte el ajuste del `php.ini` de la imagen. No bloquea el cierre de la spec 21 si el PO acepta el riesgo.
+
+## Cierre de QA (2026-11-21): tratado como problema de ambiente
+Por decisión del usuario, este bug se toma como un problema de ambiente (contenedor sin `php.ini`, ver la revisión de desarrollo de arriba) y **no bloquea** la spec 21. Queda **sin re-probar**: se volverá a probar más adelante en otras condiciones (imagen con `php.ini` de producción, `memory_limit` real del servidor).
+
+Pendientes que quedan fuera de esta spec:
+- Ticket aparte para fijar `display_errors=0` y `log_errors=1` en la imagen (afecta a todo el API).
+- Confirmar el `memory_limit` y el `php.ini` de producción.
+- Decisión del PO sobre ADR-005 (límite de filas, `memory_limit` o paginación) para el escenario 23 con ≥ ~600 filas.
+
+Riesgo aceptado: con ~600 filas o más y 128M el endpoint no responde el JSON `Could not generate statement`. Hoy el máximo en datos reales es 6 trámites por cliente.

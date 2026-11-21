@@ -4,7 +4,7 @@
 **Media**. No hay pérdida ni alteración de datos en el servidor, pero el PDF entregado al cliente final queda con importes ilegibles (columna Saldo, y a veces Abono, fuera de la hoja).
 
 ## Estado
-Open
+Closed (verificado por QA, 2026-11-21)
 
 ## Criterios incumplidos
 - PO, Casos Edge: "Nombre de cliente o comentario muy largo: el texto se ajusta dentro de su celda sin romper la tabla."
@@ -73,3 +73,22 @@ Token de la notaría 2: generar un JWT con `notaryId = 2`.
 - Visual (rasterizado con poppler): los casos de la tabla de "Pasos para reproducir" ahora parten el texto dentro de la celda y se ven las seis columnas; el nombre de 200 caracteres se ajusta en 3 líneas; un trámite con referencia normal sigue igual; cliente real (notaría 1, con logo y rango) sin cambios.
 - Efecto colateral aceptado: con las columnas porcentuales Concepto queda más angosto (≈33 % del ancho útil, antes ≈48 %). Los conceptos normales ("Procedimiento – referencia") siguen cabiendo, y los largos se parten en varias líneas.
 - No se tocó Receipt, el servicio, el libro ni el JSON de la spec 19.
+
+## Verificación de QA (2026-11-21): CERRADO
+Commit verificado: `a0bc058`. Se recrearon los fixtures en la notaría 2 y se pidió el PDF por la API (los fixtures ya se eliminaron; checksums de tablas idénticos a los del inicio).
+
+| Caso | Resultado |
+|------|-----------|
+| 60 caracteres seguidos en referencia | PASS. Se parte en 2 líneas dentro de Concepto; Cargo y Saldo visibles ($333.00 / $333.00) |
+| 150 caracteres seguidos en referencia | PASS. 5 líneas dentro de la celda; importes visibles |
+| URL de 150 caracteres en comentario de un cobro | PASS. Se parte en la celda; Abono $34.56 y Saldo $1,200.00 visibles |
+| Nombre de cliente de 200 caracteres, teléfono de 20 y correo de 85 | PASS. El nombre ocupa 3 líneas dentro de la hoja; la tabla de movimientos no se afecta |
+| Importes grandes (`$99,000,000.00`, `$99,999,999.99`) | PASS. Las seis columnas caben, sin partir importes |
+| Multipágina (150 filas, 6 páginas) | PASS. Encabezado de columnas repetido, filas sin partir, footer en las 6 páginas |
+
+- **Medición objetiva:** con `pdftotext -bbox`, el borde derecho máximo de todo el texto es 577.8 pt en los 5 PDF (límite 582 pt; hoja de 612 pt). Antes del fix las celdas llegaban a 700–1361 pt.
+- **Suite completa:** 1084 tests, 2171 assertions, en verde (incluye los 4 casos nuevos de `testUnbreakableTextStaysInsideThePage`).
+- **Regresión:** 44/44 comparaciones PDF contra JSON de la spec 19 (22 clientes reales de la notaría 1, sin filtro y con rango): `totalCharges`, `totalPayments` y `balance` idénticos.
+- **Revisión visual:** acentos, encabezado, resumen y leyenda sin cambios.
+
+**Observación cosmética, no bloqueante y anterior al fix:** los encabezados "Cargo", "Abono" y "Saldo" quedan alineados a la izquierda sobre importes alineados a la derecha, porque `.ledger th { text-align: left }` pesa más que `.num { text-align: right }`. Ya estaba en `002a1d1`. Se puede corregir con `.ledger th.num { text-align: right }` en una próxima iteración.
