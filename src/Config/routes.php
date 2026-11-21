@@ -87,6 +87,8 @@ $router->delete('/api/v3/payment-procedures/{id}/taxes/{taxId}', [PaymentProcedu
 $router->get('/api/v3/payment-clients', [PaymentClientController::class, 'index'])->withMiddleware('auth');
 $router->get('/api/v3/payment-clients/{id}', [PaymentClientController::class, 'show'])->withMiddleware('auth');
 $router->get('/api/v3/payment-clients/{id}/statement', [PaymentStatementController::class, 'show'])->withMiddleware('auth');
+// Same resource, one more segment: no collision with /payment-clients/{id}/statement
+$router->get('/api/v3/payment-clients/{id}/statement/pdf', [PaymentStatementController::class, 'pdf'])->withMiddleware('auth');
 $router->post('/api/v3/payment-clients', [PaymentClientController::class, 'store'])->withMiddleware('auth');
 $router->put('/api/v3/payment-clients/{id}', [PaymentClientController::class, 'update'])->withMiddleware('auth');
 
