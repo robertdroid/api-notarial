@@ -1,3 +1,22 @@
+# Authorization header: some FastCGI/PHP-FPM setups do not pass it to PHP.
+# Complements the RewriteRule below (the code reads $_SERVER['HTTP_AUTHORIZATION']).
+<IfModule mod_setenvif.c>
+    SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+</IfModule>
+
+# CORS: only the allowed frontends (the origin is echoed back, never "*").
+# notarialv2 = current frontend; notarial = definitive one. Preflight (OPTIONS) is
+# answered with 200 by the PHP router; these headers are added to every response.
+<IfModule mod_headers.c>
+    SetEnvIf Origin "^(https://(notarialv2|notarial)\.devrob\.net)$" CORS_ORIGIN=$1
+    Header always set Access-Control-Allow-Origin "%{CORS_ORIGIN}e" env=CORS_ORIGIN
+    Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS" env=CORS_ORIGIN
+    Header always set Access-Control-Allow-Headers "Authorization, Content-Type, X-Requested-With" env=CORS_ORIGIN
+    Header always set Access-Control-Expose-Headers "Content-Disposition" env=CORS_ORIGIN
+    Header always set Access-Control-Max-Age "86400" env=CORS_ORIGIN
+    Header always merge Vary "Origin"
+</IfModule>
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
 

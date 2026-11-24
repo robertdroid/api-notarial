@@ -1,0 +1,246 @@
+name: Deploy to cPanel (production)
+
+# Release automatico: cada merge/push a la rama `main` publica la API en
+# https://api-not.devrob.net. Mismo patron que api.devrob.net y BarberApp-backend
+# (FTPS + SamKirkland/FTP-Deploy-Action), con dos diferencias propias de este repo:
+#   1. `vendor/` esta en .gitignore, asi que se construye en CI (composer --no-dev).
+#   2. Antes de subir nada corren los tests y despues se hace un smoke test contra la URL real.
+#
+# Documentacion: documentation/releases/04_ci_cd_deploy.md
+
+on:
+  push:
+    branches:
+      - main
+    # Un merge que solo toca estas rutas no cambia nada del servidor: no vale la pena desplegar.
+    # (Si mezcla estas rutas con codigo, SI se despliega.)
+    paths-ignore:
+      - "specs/**"
+      - "documentation/**"
+      - "docs/**"
+      - "legacydocs/**"
+      - ".db/**"
+      - ".claude/**"
+      - "tests/**"
+      - "README.md"
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: "Simular la subida (no modifica el servidor)"
+        type: boolean
+        default: true
+
+# Un solo deploy a la vez; uno en curso nunca se cancela a la mitad.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  PHP_VERSION: "8.5"  # misma version que el servidor (cPanel)
+  # gd (QR + logos), mbstring/dom (dompdf), fileinfo (logo mime), pdo_mysql (BD)
+  PHP_EXTENSIONS: mbstring, gd, pdo_mysql, fileinfo, dom, xmlwriter, iconv, zip, sodium
+  API_URL: https://api-not.devrob.net
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: ${{ env.PHP_EXTENSIONS }}
+          tools: composer:v2
+          coverage: none
+
+      - name: Install dependencies (with dev)
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      # Los tests son unitarios (PDO mockeado): no necesitan base de datos.
+      - name: Run PHPUnit
+        run: vendor/bin/phpunit --no-coverage
+
+  deploy:
+    name: Deploy
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: ${{ env.API_URL }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: ${{ env.PHP_EXTENSIONS }}
+          tools: composer:v2
+          coverage: none
+
+      # vendor/ no se versiona. Solo dependencias de runtime (sin phpunit).
+      - name: Install production dependencies
+        run: composer install --no-dev --optimize-autoloader --prefer-dist --no-progress --no-interaction
+
+      - name: Verify build before uploading
+        run: |
+          test -f vendor/autoload.php || { echo "::error::vendor/autoload.php missing"; exit 1; }
+          test -f public/index.php    || { echo "::error::public/index.php missing"; exit 1; }
+          test -d vendor/phpunit      && { echo "::error::dev dependencies leaked into vendor/"; exit 1; }
+          test -f .env                && { echo "::error::.env must never be part of the build"; exit 1; }
+          echo "Build OK"
+
+      - name: Deploy via FTPS
+        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+
+          protocol: ftps
+          port: 21
+
+          # Raiz del proyecto en el servidor. El Document Root del subdominio en cPanel
+          # debe apuntar a <server-dir>/public (ver documentation/releases/02_server_configuration.md)
+          server-dir: api-not.devrob.net/
+
+          # Solo en ejecucion manual con "dry-run" marcado. En push a main siempre es false.
+          dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run }}
+
+          log-level: standard
+
+          # Solo se sube lo que corre en produccion: public/, src/ y vendor/ (runtime).
+          # FTP-Deploy-Action sube unicamente los archivos que cambiaron respecto al ultimo
+          # deploy (estado en .ftp-deploy-sync-state.json dentro de server-dir).
+          # Lo excluido NUNCA se sube ni se borra del servidor.
+          exclude: |
+            # Git y control de versiones
+            **/.git*
+            **/.git*/**
+            **/.gitignore
+            **/.gitattributes
+            **/.deployignore
+
+            # CI/CD
+            **/.github/**
+
+            # IDEs y editores
+            **/.idea/**
+            **/.vscode/**
+
+            # Claude Code y MCP
+            **/.claude/**
+            **/.mcp.json
+            **/.mcp.*
+
+            # Variables de entorno: el .env de produccion vive SOLO en el servidor
+            **/.env
+            **/.env.*
+
+            # Docker y desarrollo local
+            **/docker/**
+            **/compose.yml
+            **/docker-compose.yml
+
+            # Documentacion, specs y contratos
+            **/docs/**
+            **/documentation/**
+            **/legacydocs/**
+            **/specs/**
+            **/README.md
+            **/Readme.md
+
+            # Migraciones de BD (se ejecutan a mano, ver documentation/releases/03_database_migrations.md)
+            **/.db/**
+
+            # Tests y datos de prueba
+            **/tests/**
+            **/.test_data/**
+            **/.phpunit.cache/**
+            **/phpunit.xml
+            **/phpunit.xml.dist
+
+            # Composer: el servidor no ejecuta composer, vendor/ ya viene construido
+            **/composer.json
+            **/composer.lock
+
+            # Dentro de vendor/: lo que no se usa en runtime
+            **/vendor/bin/**
+            **/vendor/**/tests/**
+            **/vendor/**/Tests/**
+            **/vendor/**/test/**
+
+            # Datos generados en el servidor: NUNCA tocar
+            # (logos de notarias: public/assets/{notaryId}/logo/)
+            **/public/assets/**
+            **/public/uploads/**
+            **/uploads/**
+            **/storage/**
+            **/logs/**
+            **/*.log
+
+            # Otros
+            **/backup/**
+            **/node_modules/**
+
+      # Verifica la app ya publicada. Si falla, los archivos YA estan arriba:
+      # revisar documentation/releases/04_ci_cd_deploy.md (seccion Troubleshooting y Rollback).
+      - name: Smoke test - app and Authorization header
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.dry-run) }}
+        run: |
+          set -u
+
+          echo "1/2 GET /api/v3/health -> 200"
+          curl --fail --silent --show-error \
+               --retry 6 --retry-delay 10 --retry-all-errors --max-time 30 \
+               "$API_URL/api/v3/health" | tee /tmp/health.json
+          echo
+          grep -q '"status":"ok"' /tmp/health.json || grep -q '"status": "ok"' /tmp/health.json \
+            || { echo "::error::health did not return status ok"; exit 1; }
+
+          # Prueba que el header Authorization LLEGA a PHP (sin necesitar base de datos):
+          # con un token basura, AuthMiddleware responde "Token invalido o expirado" si lo recibio,
+          # y "Token no proporcionado" si Apache/FastCGI lo descarto.
+          echo "2/2 GET /api/v3/me con token invalido -> 401 'Token inv...'"
+          code=$(curl --silent --output /tmp/me.json --write-out '%{http_code}' --max-time 30 \
+                 "$API_URL/api/v3/me" -H 'Authorization: Bearer smoke.test.token')
+          echo "HTTP $code"; cat /tmp/me.json; echo
+          [ "$code" = "401" ] || { echo "::error::expected 401 from /me, got $code"; exit 1; }
+          grep -q 'no proporcionado' /tmp/me.json \
+            && { echo "::error::Authorization header is not reaching PHP (add SetEnvIf to public/.htaccess, see 02_server_configuration.md sec. 5)"; exit 1; }
+          grep -q 'Token inv' /tmp/me.json \
+            || { echo "::error::unexpected /me response"; exit 1; }
+
+      # Prueba base de datos + JWT_SECRET. Un login con usuario inexistente debe dar 401.
+      # Un 500 significa: .env sin credenciales de BD validas, JWT_SECRET ausente, o falta la
+      # migracion 1 (columna usuarios_notaria.password_hash).
+      #
+      # Mientras las migraciones de BD no se hayan aplicado, este paso solo ADVIERTE.
+      # Cuando se apliquen, activar el modo estricto:
+      #   gh variable set SMOKE_DB_STRICT --body true -R robertdroid/api-notarial
+      - name: Smoke test - database and JWT
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.dry-run) }}
+        continue-on-error: ${{ vars.SMOKE_DB_STRICT != 'true' }}
+        run: |
+          set -u
+          code=$(curl --silent --output /tmp/login.json --write-out '%{http_code}' --max-time 30 \
+                 -X POST "$API_URL/api/v3/auth/login" \
+                 -H 'Content-Type: application/json' \
+                 -d '{"username":"__smoke_test__","password":"__smoke_test__"}')
+          echo "HTTP $code"; cat /tmp/login.json; echo
+          if [ "$code" != "401" ]; then
+            echo "::warning::login smoke test expected 401, got $code (500 = BD/JWT_SECRET/migracion 1 pendiente)"
+            exit 1
+          fi

@@ -6,13 +6,15 @@ define('APP_START', microtime(true));
 define('BASE_PATH', dirname(__DIR__));
 
 require_once BASE_PATH . '/vendor/autoload.php';
+require_once BASE_PATH . '/src/bootstrap.php';
 
 use App\Core\Http\Router;
 use App\Core\Http\Request;
 use App\Core\Http\Response;
 use App\Core\Exception\HttpException;
+use App\Core\Config\Config;
 
-date_default_timezone_set('America/Mexico_City');
+date_default_timezone_set(Config::get('APP_TIMEZONE', 'America/Mexico_City'));
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -35,7 +37,7 @@ try {
 } catch (Throwable $e) {
     $response = Response::json([
         'error' => 'Internal Server Error',
-        'message' => $_ENV['APP_DEBUG'] ?? false ? $e->getMessage() : null
+        'message' => Config::getBool('APP_DEBUG', false) ? $e->getMessage() : null
     ], 500);
     $response->send();
 }

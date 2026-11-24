@@ -1,0 +1,98 @@
+--- concurrency: POST /registrations on deed whose type allows 1 (0 regs), 3 parallel, 5 rounds
+create deed type 2 (max 1) round 1                               -> 201 (0.259971s)
+     PASS (201)
+  round 1 codes: 201 422 422  | rows in DB: 1
+     PASS
+create deed type 2 (max 1) round 2                               -> 201 (0.089967s)
+     PASS (201)
+  round 2 codes: 201 422 422  | rows in DB: 1
+     PASS
+create deed type 2 (max 1) round 3                               -> 201 (0.118268s)
+     PASS (201)
+  round 3 codes: 201 422 422  | rows in DB: 1
+     PASS
+create deed type 2 (max 1) round 4                               -> 201 (0.121989s)
+     PASS (201)
+  round 4 codes: 201 422 422  | rows in DB: 1
+     PASS
+create deed type 2 (max 1) round 5                               -> 201 (0.091154s)
+     PASS (201)
+  round 5 codes: 201 422 422  | rows in DB: 1
+     PASS
+--- concurrency: POST /finish, 3 parallel, 5 rounds
+create deed for finish round 1                                   -> 201 (0.110238s)
+     PASS (201)
+  round 1 codes: 200 409 409 
+     PASS
+create deed for finish round 2                                   -> 201 (0.450750s)
+     PASS (201)
+  round 2 codes: 200 409 409 
+     PASS
+create deed for finish round 3                                   -> 201 (0.090983s)
+     PASS (201)
+  round 3 codes: 200 409 409 
+     PASS
+create deed for finish round 4                                   -> 201 (0.103107s)
+     PASS (201)
+  round 4 codes: 200 409 409 
+     PASS
+create deed for finish round 5                                   -> 201 (0.087736s)
+     PASS (201)
+  round 5 codes: 200 409 409 
+     PASS
+--- concurrency: parallel participant+registration writes on one deed keep audit consistent
+create deed                                                      -> 201 (0.095427s)
+  codes:  6 201 
+     PASS  DB[SELECT COUNT(*) FROM participantes_escritura WHERE id_escritura=19532] == 6
+--- query counts (Com_select delta; exclude status query itself)
+  GET /deeds/{id}: SELECTs = 3
+  POST /deeds: SELECTs = 5
+Com_insert	443 
+--- EXPLAIN (index usage)
+1	SIMPLE	participantes_escritura	ref	idx_participantes_escritura_tipo	idx_participantes_escritura_tipo	5	const	2	Using index condition; Using where; Using filesort
+1	SIMPLE	inscripciones_escritura	ref	idx_inscripciones_escritura	idx_inscripciones_escritura	5	const	1	Using where; Using index
+1	SIMPLE	escrituras	const	PRIMARY,idx_escrituras_notaria	PRIMARY	4	const	1	
+     PASS  DB[SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='escrituras' AND NON_UNIQUE=0 AND INDEX_NAME<>'PRIMARY'] == 0
+     PASS  DB[SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='inscripciones_escritura' AND INDEX_NAME='idx_inscripciones_escritura'] == 1
+--- response times (n=20 GET detail / n=10 PUT)
+  GET detail  p50=0.077318 max=0.222904
+  PUT         p50=0.096758 max=0.261148
+--- security
+SQLi in deedNumber stored literally                              -> 201 (0.097250s)
+     PASS (201)
+     PASS  DB[SELECT COUNT(*) > 19000 FROM escrituras] == 1
+SQLi in path id                                                  -> 400 (0.058855s)
+     (info) 400
+SQLi in participantId                                            -> 400 (0.053920s)
+     PASS (400)
+error body has no stack/PDO text (404)                           -> 404 (0.063534s)
+     PASS  keys == ["code","error"]
+XSS-ish payload stored verbatim, JSON-escaped                    -> 201 (0.077030s)
+     PASS (201)
+     raw <script> in JSON body (1 line is expected as data): 1
+expired/forged token (alg none)                                  -> 401 (0.024215s)
+     PASS (401)
+--- regression smoke (other modules)
+GET /health                                                      -> 200 (0.023126s)
+     (info) /health -> 200
+GET /acts                                                        -> 200 (0.141242s)
+     (info) /acts -> 200
+GET /deed-types                                                  -> 200 (0.060940s)
+     (info) /deed-types -> 200
+GET /subdivisions                                                -> 200 (0.065461s)
+     (info) /subdivisions -> 200
+GET /users                                                       -> 200 (0.072748s)
+     (info) /users -> 200
+GET /notary                                                      -> 200 (0.072436s)
+     (info) /notary -> 200
+GET /payment-taxes                                               -> 200 (0.096174s)
+     (info) /payment-taxes -> 200
+GET /payment-procedures                                          -> 200 (0.072949s)
+     (info) /payment-procedures -> 200
+GET /payment-clients                                             -> 200 (0.093605s)
+     (info) /payment-clients -> 200
+GET /payment-transactions                                        -> 400 (0.062903s)
+     (info) /payment-transactions -> 400
+GET /deeds?limit=2                                               -> 200 (0.136710s)
+     (info) /deeds?limit=2 -> 200
+=== PASS=29 FAIL=0 ===

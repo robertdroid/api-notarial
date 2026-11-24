@@ -1,0 +1,18 @@
+### login pw72 (72-char password)
+> POST /auth/login   body: {"username":"pw72","password":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+< HTTP 200 (1.602175s)
+{"accessToken":"<JWT-redacted>","refreshToken":"<JWT-redacted>","expiresIn":3600,"tokenType":"Bearer"}
+
+
+### login pwspaces (8 spaces)
+> POST /auth/login   body: {"username":"pwspaces","password":"        "}
+< HTTP 200 (0.285634s)
+{"accessToken":"<JWT-redacted>","refreshToken":"<JWT-redacted>","expiresIn":3600,"tokenType":"Bearer"}
+
+
+### login pw72 with 71 chars must fail
+> POST /auth/login   body: {"username":"pw72","password":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+< HTTP 401 (0.768945s)
+{"error":"Invalid credentials"}
+
+

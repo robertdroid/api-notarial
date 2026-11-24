@@ -1,0 +1,174 @@
+### no token GET /users
+> GET /users   body: <none>
+< HTTP 401 (0.598390s)
+{"error":"Token no proporcionado"}
+
+
+### no token GET /users/2
+> GET /users/2   body: <none>
+< HTTP 401 (0.072772s)
+{"error":"Token no proporcionado"}
+
+
+### no token POST /users
+> POST /users   body: {"username":"zz.noauth","password":"Password123","firstName":"A","paternalLastName":"B","access":["ESC"]}
+< HTTP 401 (0.065925s)
+{"error":"Token no proporcionado"}
+
+
+### no token PUT /users/2
+> PUT /users/2   body: {"firstName":"X"}
+< HTTP 401 (0.072173s)
+{"error":"Token no proporcionado"}
+
+
+### garbage token GET /users
+> GET /users   body: <none>
+< HTTP 401 (0.167806s)
+{"error":"Token inválido o expirado"}
+
+
+### refresh token used as access GET /users
+> GET /users   body: <none>
+< HTTP 401 (0.360496s)
+{"error":"Token inválido"}
+
+
+### list n1
+> GET /users   body: <none>
+< HTTP 200 (0.318203s)
+[{"id":7,"username":"Fati","firstName":"Fátima Fernanda","paternalLastName":"Alonso","maternalLastName":"Herrera","access":["ESC","PAG"],"status":2,"lastAccess":"2026-07-24T17:00:43"},{"id":10,"username":"MYR","firstName":"MIREYA","paternalLastName":"FLORES","maternalLastName":"LANDA","access":["ESC","PAG"],"status":1,"lastAccess":"2026-11-06T10:15:06"},{"id":11,"username":"SUSY","firstName":"SUSANA","paternalLastName":"GONZALEZ","maternalLastName":"ROMERO","access":["ESC","PAG"],"status":1,"lastAccess":"2026-10-29T16:56:12"},{"id":1,"username":"dperez","firstName":"Deisy","paternalLastName":"Pérez","maternalLastName":"Martínez","access":["PAG"],"status":1,"lastAccess":"2026-11-05T09:48:45"},{"id":9,"username":"JESS","firstName":"JESSICA ANAHI","paternalLastName":"RAMIREZ","maternalLastName":"ALTAMIRANO","access":["ESC","PAG"],"status":1,"lastAccess":"2026-11-06T09:18:30"},{"id":2,"username":"devrob","firstName":"Roberto","paternalLastName":"Trejo","maternalLastName":"Hernández","access":["ESC","PAG"],"status":1,"lastAccess":"2026-11-05T09:49:17"},{"id":8,"username":"JANY","firstName":"RUBI STEPHANIE","paternalLastName":"VALERO","maternalLastName":"HERNANDEZ","access":["ESC","PAG"],"status":1,"lastAccess":"2026-11-05T12:34:03"}]
+
+
+### list n1 status=1
+> GET /users?status=1   body: <none>
+< HTTP 200 (0.142985s)
+[{"id":10,"username":"MYR","firstName":"MIREYA","paternalLastName":"FLORES","maternalLastName":"LANDA","access":["ESC","PAG"],"status":1,"lastAccess":"2026-11-06T10:15:06"},{"id":11,"username":"SUSY","firstName":"SUSANA","paternalLastName":"GONZALEZ","maternalLastName":"ROMERO","access":["ESC","PAG"],"status":1,"lastAccess":"2026-10-29T16:56:12"},{"id":1,"username":"dperez","firstName":"Deisy","paternalLastName":"Pérez","maternalLastName":"Martínez","access":["PAG"],"status":1,"lastAccess":"2026-11-05T09:48:45"},{"id":9,"username":"JESS","firstName":"JESSICA ANAHI","paternalLastName":"RAMIREZ","maternalLastName":"ALTAMIRANO","access":["ESC","PAG"],"status":1,"lastAccess":"2026-11-06T09:18:30"},{"id":2,"username":"devrob","firstName":"Roberto","paternalLastName":"Trejo","maternalLastName":"Hernández","access":["ESC","PAG"],"status":1,"lastAccess":"2026-11-05T09:49:17"},{"id":8,"username":"JANY","firstName":"RUBI STEPHANIE","paternalLastName":"VALERO","maternalLastName":"HERNANDEZ","access":["ESC","PAG"],"status":1,"lastAccess":"2026-11-05T12:34:03"}]
+
+
+### list n1 status=2
+> GET /users?status=2   body: <none>
+< HTTP 200 (0.139089s)
+[{"id":7,"username":"Fati","firstName":"Fátima Fernanda","paternalLastName":"Alonso","maternalLastName":"Herrera","access":["ESC","PAG"],"status":2,"lastAccess":"2026-07-24T17:00:43"}]
+
+
+### list status=0
+> GET /users?status=0   body: <none>
+< HTTP 400 (0.182059s)
+{"error":"Invalid status value"}
+
+
+### list status=3
+> GET /users?status=3   body: <none>
+< HTTP 400 (0.363937s)
+{"error":"Invalid status value"}
+
+
+### list status=abc
+> GET /users?status=abc   body: <none>
+< HTTP 400 (0.140947s)
+{"error":"Invalid status value"}
+
+
+### list status= (empty)
+> GET /users?status=   body: <none>
+< HTTP 400 (0.152411s)
+{"error":"Invalid status value"}
+
+
+### list status=1%20OR%201=1 (sqli)
+> GET /users?status=1%20OR%201=1   body: <none>
+< HTTP 400 (0.119459s)
+{"error":"Invalid status value"}
+
+
+### list status[]=1
+> GET /users?status%5B%5D=1   body: <none>
+< HTTP 400 (0.136449s)
+{"error":"Invalid status value"}
+
+
+### list n3
+> GET /users   body: <none>
+< HTTP 200 (0.228777s)
+[{"id":5,"username":"notaria24","firstName":"DEISY","paternalLastName":"PEREZ","maternalLastName":"MARTINEZ","access":["ESC","PAG"],"status":1,"lastAccess":"2026-08-24T15:20:13"},{"id":4,"username":"devrob15","firstName":"ROBERTO","paternalLastName":"TREJO","maternalLastName":"HERNANDEZ","access":["ESC","PAG"],"status":1,"lastAccess":"2019-10-22T15:42:33"},{"id":6,"username":"FANNY RECEPCION","firstName":"RUBI STEPHANIE ","paternalLastName":"VALERO","maternalLastName":"HERNANDEZ","access":["ESC","PAG"],"status":1,"lastAccess":"2018-03-03T10:09:51"}]
+
+
+### list n2
+> GET /users   body: <none>
+< HTTP 200 (0.708619s)
+[{"id":3,"username":"devrob14","firstName":"ROBERTO","paternalLastName":"TREJO","maternalLastName":"HERNANDEZ","access":["ESC","PAG"],"status":1,"lastAccess":"2022-11-08T10:27:14"}]
+
+
+### show own-notary user 2
+> GET /users/2   body: <none>
+< HTTP 200 (0.131094s)
+{"id":2,"username":"devrob","firstName":"Roberto","paternalLastName":"Trejo","maternalLastName":"Hernández","access":["ESC","PAG"],"status":1,"lastAccess":"2026-11-05T09:49:17"}
+
+
+### show user 7 (id_estatus=0)
+> GET /users/7   body: <none>
+< HTTP 200 (0.259705s)
+{"id":7,"username":"Fati","firstName":"Fátima Fernanda","paternalLastName":"Alonso","maternalLastName":"Herrera","access":["ESC","PAG"],"status":2,"lastAccess":"2026-07-24T17:00:43"}
+
+
+### show other-notary user 4 from n1
+> GET /users/4   body: <none>
+< HTTP 404 (0.759950s)
+{"error":"User not found"}
+
+
+### show n1 user 2 from n3
+> GET /users/2   body: <none>
+< HTTP 404 (0.149974s)
+{"error":"User not found"}
+
+
+### show nonexistent 99999
+> GET /users/99999   body: <none>
+< HTTP 404 (0.127448s)
+{"error":"User not found"}
+
+
+### show id=0
+> GET /users/0   body: <none>
+< HTTP 404 (0.119827s)
+{"error":"User not found"}
+
+
+### show id=-1
+> GET /users/-1   body: <none>
+< HTTP 404 (0.134285s)
+{"error":"User not found"}
+
+
+### show id=abc
+> GET /users/abc   body: <none>
+< HTTP 400 (0.128911s)
+{"error":"Invalid ID format"}
+
+
+### show id=1.5
+> GET /users/1.5   body: <none>
+< HTTP 400 (0.609695s)
+{"error":"Invalid ID format"}
+
+
+### show id=2abc
+> GET /users/2abc   body: <none>
+< HTTP 400 (0.122798s)
+{"error":"Invalid ID format"}
+
+
+### show id=99999999999999999999
+> GET /users/99999999999999999999   body: <none>
+< HTTP 400 (0.176680s)
+{"error":"Invalid ID format"}
+
+
+### show id=1%20OR%201=1
+> GET /users/1%20OR%201=1   body: <none>
+< HTTP 400 (0.111970s)
+{"error":"Invalid ID format"}
+
+

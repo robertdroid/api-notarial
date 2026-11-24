@@ -1,0 +1,254 @@
+--- PUT /deeds/{id}
+PUT full (user 8)                                                -> 200 (0.269296s)
+     PASS (200)
+     PASS  .book == "11"
+     PASS  .act.id == 2
+     PASS  .participants|length == 2
+     PASS  .registrations|length == 1
+     PASS  .modifiedBy.id == 8
+     PASS  .isFinished == false
+     PASS  DB[SELECT id_usuario, fecha_modificacion>'2020-01-02' FROM escrituras WHERE id_escritura=19498] == 8	1
+PUT ignores participants/registrations/isFinished                -> 200 (0.136641s)
+     PASS (200)
+     PASS  .isFinished == false
+     PASS  .participants|length == 2
+     PASS  .registrations|length == 1
+     PASS  DB[SELECT terminada FROM escrituras WHERE id_escritura=19498] == 0
+     replacement semantics: optionals omitted -> null
+     PASS  .property == null
+     PASS  .deliveryDate == null
+     PASS  .deliveredBy == null
+     PASS  .observations == null
+PUT same deedNumber as other deed (ADR-002, no 409)              -> 200 (0.179897s)
+     PASS (200)
+PUT subdivision null stores -1                                   -> 200 (0.125676s)
+     PASS (200)
+     PASS  .subdivision == null
+     PASS  DB[SELECT id_fraccionamiento FROM escrituras WHERE id_escritura=19499] == -1
+PUT set subdivision 2 on type 4                                  -> 200 (0.300274s)
+     PASS (200)
+     PASS  .subdivision.id == 2
+PUT 404 nonexistent                                              -> 404 (0.085317s)
+     PASS (404)
+     PASS  .code == "deed_not_found"
+PUT cross-tenant (n2 token on n1 deed)                           -> 404 (0.085149s)
+     PASS (404)
+     PASS  DB[SELECT libro FROM escrituras WHERE id_escritura=19498] == 11
+PUT invalid id                                                   -> 400 (0.069370s)
+     PASS (400)
+     PASS  .code == "invalid_id"
+PUT id=0                                                         -> 404 (0.098138s)
+     PASS (404)
+PUT invalid body on nonexistent id -> 400 first                  -> 400 (0.116156s)
+     PASS (400)
+PUT missing required                                             -> 400 (0.078249s)
+     PASS (400)
+     PASS  .code == "validation_failed"
+PUT act inactive (changed)                                       -> 422 (0.091171s)
+     PASS (422)
+     PASS  .code == "act_unavailable"
+PUT type inactive (changed)                                      -> 422 (0.231178s)
+     PASS (422)
+     PASS  .code == "deed_type_unavailable"
+PUT subdivision inactive (changed)                               -> 422 (0.096106s)
+     PASS (422)
+     PASS  .code == "subdivision_unavailable"
+PUT only subdivision changes on type w/o subdivisions            -> 422 (0.095944s)
+     PASS (422)
+     PASS  .code == "subdivision_not_allowed"
+  legacy inactive act: unchanged act => OK; changed => validated
+PUT legacy deed keeps inactive act (unchanged)                   -> 200 (0.142989s)
+     PASS (200)
+     PASS  .act.id == 169
+PUT legacy deed: change act to 1 OK                              -> 200 (0.138360s)
+     PASS (200)
+PUT then back to inactive 169 -> 422                             -> 422 (0.137207s)
+     PASS (422)
+  type change vs registrations limit
+POST reg #2 on FULL (type1 max5)                                 -> 201 (0.110195s)
+     PASS (201)
+PUT change type to 2 (max 1) with 2 regs                         -> 422 (0.089700s)
+     PASS (422)
+     PASS  .code == "registration_limit_exceeded"
+     PASS  .details.maxRegistrations == 1
+     PASS  .details.currentRegistrations == 2
+     PASS  DB[SELECT id_tipo_escitura FROM escrituras WHERE id_escritura=19498] == 1
+PUT change type to 3 (max 2) with 2 regs OK                      -> 200 (0.267442s)
+     PASS (200)
+     PASS  .deedType.id == 3
+PUT date/number validations                                      -> 400 (0.085742s)
+     PASS (400)
+--- POST /deeds/{id}/finish
+finish (user 8)                                                  -> 200 (0.116799s)
+     PASS (200)
+     PASS  .isFinished == true
+     PASS  .modifiedBy.id == 8
+     PASS  DB[SELECT terminada,id_usuario FROM escrituras WHERE id_escritura=19500] == 1	8
+finish again -> 409                                              -> 409 (0.122573s)
+     PASS (409)
+     PASS  .code == "deed_already_finished"
+     PASS  .error == "Deed is already finished"
+PUT on finished deed -> 200 and stays finished                   -> 200 (0.130525s)
+     PASS (200)
+     PASS  .isFinished == true
+     PASS  .book == "10-edited"
+     PASS  DB[SELECT terminada FROM escrituras WHERE id_escritura=19500] == 1
+PUT finished with isFinished:false                               -> 200 (0.413290s)
+     PASS (200)
+     PASS  .isFinished == true
+     PASS  DB[SELECT terminada FROM escrituras WHERE id_escritura=19500] == 1
+finish nonexistent                                               -> 404 (0.089018s)
+     PASS (404)
+finish cross-tenant                                              -> 404 (0.075720s)
+     PASS (404)
+     PASS  DB[SELECT terminada FROM escrituras WHERE id_escritura=19501] == 0
+finish invalid id                                                -> 400 (0.102382s)
+     PASS (400)
+participants editable on finished deed                           -> 201 (0.115801s)
+     PASS (201)
+legacy finish with terminada NULL then finish                    -> 200 (0.174518s)
+     PASS (200)
+finish when terminada NULL                                       -> 200 (0.220708s)
+     PASS (200)
+     PASS  .isFinished == true
+--- participants
+GET participants only active                                     -> 200 (0.078569s)
+     PASS (200)
+     PASS  length == 2
+     PASS  [.[].name]|any(startswith("QA13_")) == false
+["id","name","type","typeId"]
+GET participants 404                                             -> 404 (0.089311s)
+     PASS (404)
+GET participants cross-tenant                                    -> 404 (0.061206s)
+     PASS (404)
+POST participant                                                 -> 201 (0.091496s)
+     PASS (201)
+     PASS  .type == "Enajenante"
+     PASS  .name == "Carlos Ruiz"
+     PASS  DB[SELECT id_usuario FROM escrituras WHERE id_escritura=19498] == 8
+POST participant typeId 99                                       -> 400 (0.125955s)
+     PASS (400)
+     PASS  .errors.typeId == "Invalid participant type"
+POST participant name missing                                    -> 400 (0.224600s)
+     PASS (400)
+POST participant 251 chars                                       -> 400 (0.063759s)
+     PASS (400)
+POST participant 404 deed                                        -> 404 (0.075980s)
+     PASS (404)
+POST participant cross-tenant                                    -> 404 (0.067735s)
+     PASS (404)
+PUT participant                                                  -> 200 (0.087305s)
+     PASS (200)
+     PASS  .type == "Adquiriente"
+     PASS  .name == "Carlos R. Ruiz"
+seed participant on other deed                                   -> 201 (0.091771s)
+PUT participant of another deed -> 404                           -> 404 (0.104269s)
+     PASS (404)
+     PASS  .code == "participant_not_found"
+     PASS  DB[SELECT nombre_participante FROM participantes_escritura WHERE id_participante=60502] == Other
+DELETE participant of another deed -> 404                        -> 404 (0.061458s)
+     PASS (404)
+PUT participant nonexistent                                      -> 404 (0.199405s)
+     PASS (404)
+PUT participant cross-tenant                                     -> 404 (0.090933s)
+     PASS (404)
+     PASS  .code == "deed_not_found"
+PUT participant invalid ids                                      -> 400 (0.053618s)
+     PASS (400)
+PUT participant id 0                                             -> 404 (0.060962s)
+     PASS (404)
+     PASS  .code == "participant_not_found"
+PUT inactive (2) -> 409                                          -> 409 (0.084371s)
+     PASS (409)
+     PASS  .code == "participant_inactive"
+PUT legacy status 0 -> 409                                       -> 409 (0.131307s)
+     PASS (409)
+DELETE inactive (2) -> 409                                       -> 409 (0.063226s)
+     PASS (409)
+     PASS  .code == "participant_already_inactive"
+     PASS  .error == "Participant is already inactive"
+DELETE legacy status 0 -> 409                                    -> 409 (0.058936s)
+     PASS (409)
+DELETE participant (user 8)                                      -> 204 (0.205518s)
+     PASS (204)
+     PASS  DB[SELECT id_estatus FROM participantes_escritura WHERE id_participante=60501] == 2
+     PASS  DB[SELECT id_usuario, fecha_modificacion>'2020-01-02' FROM escrituras WHERE id_escritura=19498] == 8	1
+DELETE participant again -> 409                                  -> 409 (0.083270s)
+     PASS (409)
+GET participants after delete                                    -> 200 (0.063878s)
+     PASS  [.[].id]|index(60501) == null
+DELETE participant cross-tenant                                  -> 404 (0.094215s)
+     PASS (404)
+DELETE participant 404 deed                                      -> 404 (0.052461s)
+     PASS (404)
+--- registrations
+GET registrations                                                -> 200 (0.116963s)
+     PASS (200)
+     PASS  length == 2
+["date","id","number","section","volume"]
+GET registrations empty deed                                     -> 200 (0.081793s)
+     PASS (200)
+     PASS  . == []
+GET registrations cross-tenant                                   -> 404 (0.227114s)
+     PASS (404)
+GET registrations 404                                            -> 404 (0.077871s)
+     PASS (404)
+POST registration                                                -> 201 (0.110019s)
+     PASS (201)
+     PASS  .number == "54321"
+     PASS  .date == "2024-03-15"
+     PASS  DB[SELECT id_usuario FROM escrituras WHERE id_escritura=19501] == 8
+POST registration empty body                                     -> 400 (0.071770s)
+     PASS (400)
+     PASS  .errors.registration == "At least one registration field is required"
+POST registration bad date                                       -> 400 (0.077231s)
+     PASS (400)
+POST registration over limit (type 3 max 2): 2nd ok              -> 201 (0.133154s)
+     PASS (201)
+POST registration 3rd -> 422                                     -> 422 (0.090450s)
+     PASS (422)
+     PASS  .code == "registration_limit_exceeded"
+     PASS  .details.currentRegistrations == 3
+     PASS  .details.maxRegistrations == 2
+     PASS  DB[SELECT COUNT(*) FROM inscripciones_escritura WHERE id_escritura=19501] == 2
+POST registration cross-tenant                                   -> 404 (0.201934s)
+     PASS (404)
+PUT registration                                                 -> 200 (0.078715s)
+     PASS (200)
+     PASS  .number == "99999"
+     PASS  .section == null
+     PASS  .date == null
+PUT registration -> empty body 400                               -> 400 (0.073908s)
+     PASS (400)
+PUT registration other deed -> 404                               -> 404 (0.079679s)
+     PASS (404)
+     PASS  .code == "registration_not_found"
+     PASS  DB[SELECT numero_inscripcion FROM inscripciones_escritura WHERE id_inscripcion=36207] == 99999
+PUT registration at limit allowed (no limit rule)                -> 200 (0.092835s)
+     PASS (200)
+PUT registration cross-tenant                                    -> 404 (0.118346s)
+     PASS (404)
+     PASS  .code == "deed_not_found"
+DELETE registration other deed                                   -> 404 (0.076257s)
+     PASS (404)
+DELETE registration cross-tenant                                 -> 404 (0.067194s)
+     PASS (404)
+DELETE registration                                              -> 204 (0.084089s)
+     PASS (204)
+     PASS  DB[SELECT COUNT(*) FROM inscripciones_escritura WHERE id_inscripcion=36207] == 0
+DELETE registration again -> 404                                 -> 404 (0.204921s)
+     PASS (404)
+DELETE registration invalid id                                   -> 400 (0.068310s)
+     PASS (400)
+POST registration after delete (room again)                      -> 201 (0.122575s)
+     PASS (201)
+  legacy deed above limit: can edit/delete, cannot add
+POST registration over limit (legacy)                            -> 422 (0.091262s)
+     PASS (422)
+PUT deed (type unchanged) with regs over limit OK                -> 200 (0.160352s)
+     PASS (200)
+--- 405/route checks
+DELETE /deeds/{id} not exposed                                   -> 405 (0.037832s)
+     (info) DELETE /deeds/id -> 405
+     PASS (405)
+=== PASS=159 FAIL=0 ===

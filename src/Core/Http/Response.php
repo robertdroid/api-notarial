@@ -57,6 +57,16 @@ class Response
         return self::json(['error' => $message], 404);
     }
 
+    public static function conflict(string $message = 'Conflict'): self
+    {
+        return self::json(['error' => $message], 409);
+    }
+
+    public static function unprocessable(string $message = 'Unprocessable entity'): self
+    {
+        return self::json(['error' => $message], 422);
+    }
+
     public static function methodNotAllowed(): self
     {
         return self::json(['error' => 'Method not allowed'], 405);
@@ -65,6 +75,40 @@ class Response
     public static function serverError(string $message = 'Internal server error'): self
     {
         return self::json(['error' => $message], 500);
+    }
+
+    public static function file(string $path, string $mimeType, int $size): self
+    {
+        return new self(
+            body: null,
+            statusCode: 200,
+            headers: [
+                'Content-Type' => $mimeType,
+                'Content-Length' => (string) $size,
+                'Content-Disposition' => 'inline',
+                'Cache-Control' => 'public, max-age=3600',
+                'X-File-Path' => $path,
+            ]
+        );
+    }
+
+    /**
+     * Binary PDF built entirely in memory. The file name is server-built, but it is validated
+     * anyway so it can never inject header content.
+     */
+    public static function pdf(string $binary, string $filename): self
+    {
+        if (preg_match('/^[A-Za-z0-9._-]+$/D', $filename) !== 1) {
+            throw new \InvalidArgumentException('Invalid file name');
+        }
+
+        return new self($binary, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Length' => (string) strlen($binary),
+            'Content-Disposition' => 'inline; filename="' . $filename . '"',
+            'Cache-Control' => 'no-store',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     public function getBody(): mixed
@@ -101,7 +145,16 @@ class Response
         http_response_code($this->statusCode);
 
         foreach ($this->headers as $name => $value) {
+            if ($name === 'X-File-Path') {
+                continue;
+            }
             header("$name: $value");
+        }
+
+        // If it's a file response, send the file content
+        if (isset($this->headers['X-File-Path'])) {
+            readfile($this->headers['X-File-Path']);
+            return;
         }
 
         if ($this->body !== null) {

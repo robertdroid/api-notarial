@@ -49,6 +49,22 @@ class Router
         return $this;
     }
 
+    public function withMiddleware(string|array $middlewareNames): self
+    {
+        if (empty($this->routes)) {
+            return $this;
+        }
+
+        $lastIndex = count($this->routes) - 1;
+        $names = is_array($middlewareNames) ? $middlewareNames : [$middlewareNames];
+        $this->routes[$lastIndex]['middlewares'] = array_merge(
+            $this->routes[$lastIndex]['middlewares'],
+            $names
+        );
+
+        return $this;
+    }
+
     private function addRoute(string $method, string $path, callable|array $handler, array $middlewares = []): self
     {
         $this->routes[] = [
@@ -96,25 +112,40 @@ class Router
             throw new NotFoundException("Route not found: $method $uri");
         }
 
-        // Execute handler
+        // Build the final handler
         $handler = $matchedRoute['handler'];
+        $finalHandler = function (Request $req) use ($handler): Response {
+            if (is_callable($handler)) {
+                $result = $handler($req);
+            } elseif (is_array($handler)) {
+                [$controllerClass, $method] = $handler;
+                $controller = new $controllerClass();
+                $result = $controller->$method($req);
+            } else {
+                throw new HttpException('Invalid route handler', 500);
+            }
 
-        if (is_callable($handler)) {
-            $result = $handler($request);
-        } elseif (is_array($handler)) {
-            [$controllerClass, $method] = $handler;
-            $controller = new $controllerClass();
-            $result = $controller->$method($request);
-        } else {
-            throw new HttpException('Invalid route handler', 500);
+            if ($result instanceof Response) {
+                return $result;
+            }
+
+            return Response::json($result);
+        };
+
+        // Build middleware chain (in reverse order)
+        $middlewareNames = $matchedRoute['middlewares'] ?? [];
+        $chain = $finalHandler;
+
+        foreach (array_reverse($middlewareNames) as $name) {
+            if (!isset($this->middlewares[$name])) {
+                throw new HttpException("Middleware not found: {$name}", 500);
+            }
+            $middleware = $this->middlewares[$name];
+            $next = $chain;
+            $chain = fn(Request $req): Response => $middleware($req, $next);
         }
 
-        // Convert result to Response if needed
-        if ($result instanceof Response) {
-            return $result;
-        }
-
-        return Response::json($result);
+        return $chain($request);
     }
 
     private function pathToRegex(string $path): string

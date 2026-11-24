@@ -1,0 +1,300 @@
+<?php
+
+declare(strict_types=1);
+
+use Dotenv\Dotenv;
+use App\Core\Config\Config;
+use App\Core\Database\Connection;
+use App\Core\Container\ServiceLocator;
+use App\Module\Auth\Service\JwtService;
+use App\Module\Auth\Service\AuthService;
+use App\Module\Auth\Repository\UserAuthRepository;
+use App\Module\Act\Repository\ActRepository;
+use App\Module\Act\Service\ActService;
+use App\Module\Subdivision\Repository\SubdivisionRepository;
+use App\Module\Subdivision\Service\SubdivisionService;
+use App\Module\DeedType\Repository\DeedTypeRepository;
+use App\Module\DeedType\Service\DeedTypeService;
+use App\Module\PaymentTax\Repository\PaymentTaxRepository;
+use App\Module\PaymentTax\Service\PaymentTaxService;
+use App\Module\PaymentClient\Repository\PaymentClientRepository;
+use App\Module\PaymentClient\Service\PaymentClientService;
+use App\Module\PaymentStatement\Repository\StatementRepository;
+use App\Module\PaymentStatement\Renderer\StatementHtmlBuilder;
+use App\Module\PaymentStatement\Renderer\StatementPdfRenderer;
+use App\Module\PaymentStatement\Service\PaymentStatementService;
+use App\Module\PaymentStatement\Service\StatementLedgerBuilder;
+use App\Module\PaymentStatement\Service\StatementPdfService;
+use App\Shared\Pdf\DompdfDocumentRenderer;
+use App\Shared\Pdf\LogoDataUriReader;
+use App\Module\PaymentProcedure\Repository\PaymentProcedureRepository;
+use App\Module\PaymentProcedure\Service\PaymentProcedureService;
+use App\Module\PaymentProcedureTax\Repository\PaymentProcedureTaxRepository;
+use App\Module\PaymentProcedureTax\Service\PaymentProcedureTaxService;
+use App\Core\Database\TransactionManager;
+use App\Module\PaymentTransaction\Repository\PaymentTransactionRepository;
+use App\Module\PaymentTransaction\Service\PaymentTransactionService;
+use App\Module\Payment\Repository\PaymentRepository;
+use App\Module\Payment\Service\PaymentService;
+use App\Module\User\Repository\UserRepository;
+use App\Module\User\Service\UserService;
+use App\Module\Notary\Repository\NotaryRepository;
+use App\Module\Notary\Service\NotaryService;
+use App\Module\Me\Service\MeService;
+use App\Module\Receipt\Renderer\QrCodeGenerator;
+use App\Module\Receipt\Renderer\ReceiptHtmlBuilder;
+use App\Module\Receipt\Renderer\ReceiptPdfRenderer;
+use App\Module\Receipt\Service\AmountInWordsConverter;
+use App\Module\Receipt\Service\ReceiptService;
+use App\Module\Deed\Repository\DeedRepository;
+use App\Module\Deed\Repository\ParticipantRepository;
+use App\Module\Deed\Repository\RegistrationRepository;
+use App\Module\Deed\Service\DeedReferenceValidator;
+use App\Module\Deed\Service\DeedService;
+use App\Module\Deed\Service\ParticipantService;
+use App\Module\Deed\Service\RegistrationService;
+
+$dotenv = Dotenv::createImmutable(BASE_PATH);
+$dotenv->load();
+
+Config::load();
+
+ServiceLocator::register(JwtService::class, function () {
+    return new JwtService();
+});
+
+ServiceLocator::register(UserAuthRepository::class, function () {
+    return new UserAuthRepository(Connection::getInstance());
+});
+
+ServiceLocator::register(AuthService::class, function () {
+    return new AuthService(
+        ServiceLocator::get(UserAuthRepository::class),
+        ServiceLocator::get(JwtService::class)
+    );
+});
+
+ServiceLocator::register(ActRepository::class, function () {
+    return new ActRepository(Connection::getInstance());
+});
+
+ServiceLocator::register(ActService::class, function () {
+    return new ActService(
+        ServiceLocator::get(ActRepository::class)
+    );
+});
+
+ServiceLocator::register(SubdivisionRepository::class, function () {
+    return new SubdivisionRepository(Connection::getInstance());
+});
+
+ServiceLocator::register(SubdivisionService::class, function () {
+    return new SubdivisionService(
+        ServiceLocator::get(SubdivisionRepository::class)
+    );
+});
+
+ServiceLocator::register(DeedTypeRepository::class, function () {
+    return new DeedTypeRepository(Connection::getInstance());
+});
+
+ServiceLocator::register(DeedTypeService::class, function () {
+    return new DeedTypeService(
+        ServiceLocator::get(DeedTypeRepository::class)
+    );
+});
+
+ServiceLocator::register(PaymentTaxRepository::class, function () {
+    return new PaymentTaxRepository(Connection::getInstance());
+});
+
+ServiceLocator::register(PaymentTaxService::class, function () {
+    return new PaymentTaxService(
+        ServiceLocator::get(PaymentTaxRepository::class)
+    );
+});
+
+ServiceLocator::register(PaymentProcedureRepository::class, function () {
+    return new PaymentProcedureRepository(Connection::getInstance());
+});
+
+ServiceLocator::register(PaymentProcedureService::class, function () {
+    return new PaymentProcedureService(
+        ServiceLocator::get(PaymentProcedureRepository::class)
+    );
+});
+
+ServiceLocator::register(PaymentProcedureTaxRepository::class, function () {
+    return new PaymentProcedureTaxRepository(Connection::getInstance());
+});
+
+ServiceLocator::register(PaymentProcedureTaxService::class, function () {
+    return new PaymentProcedureTaxService(
+        ServiceLocator::get(PaymentProcedureTaxRepository::class),
+        ServiceLocator::get(PaymentProcedureRepository::class),
+        ServiceLocator::get(PaymentTaxRepository::class)
+    );
+});
+
+ServiceLocator::register(PaymentClientRepository::class, function () {
+    return new PaymentClientRepository(Connection::getInstance());
+});
+
+ServiceLocator::register(PaymentClientService::class, function () {
+    return new PaymentClientService(
+        ServiceLocator::get(PaymentClientRepository::class)
+    );
+});
+
+ServiceLocator::register(StatementRepository::class, function () {
+    return new StatementRepository(Connection::getInstance());
+});
+
+ServiceLocator::register(PaymentStatementService::class, function () {
+    return new PaymentStatementService(
+        ServiceLocator::get(PaymentClientRepository::class),
+        ServiceLocator::get(StatementRepository::class)
+    );
+});
+
+ServiceLocator::register(TransactionManager::class, function () {
+    return new TransactionManager(Connection::getInstance());
+});
+
+ServiceLocator::register(PaymentTransactionRepository::class, function () {
+    return new PaymentTransactionRepository(Connection::getInstance());
+});
+
+ServiceLocator::register(PaymentTransactionService::class, function () {
+    return new PaymentTransactionService(
+        ServiceLocator::get(PaymentTransactionRepository::class),
+        ServiceLocator::get(PaymentClientRepository::class),
+        ServiceLocator::get(PaymentProcedureRepository::class),
+        ServiceLocator::get(PaymentTaxRepository::class),
+        ServiceLocator::get(PaymentProcedureTaxRepository::class),
+        ServiceLocator::get(TransactionManager::class)
+    );
+});
+
+ServiceLocator::register(PaymentRepository::class, function () {
+    return new PaymentRepository(Connection::getInstance());
+});
+
+ServiceLocator::register(PaymentService::class, function () {
+    return new PaymentService(
+        ServiceLocator::get(PaymentRepository::class),
+        ServiceLocator::get(PaymentClientRepository::class)
+    );
+});
+
+ServiceLocator::register(ReceiptService::class, function () {
+    return new ReceiptService(
+        ServiceLocator::get(PaymentTransactionService::class),
+        ServiceLocator::get(PaymentService::class),
+        ServiceLocator::get(PaymentClientService::class),
+        ServiceLocator::get(NotaryService::class),
+        new AmountInWordsConverter()
+    );
+});
+
+ServiceLocator::register(ReceiptPdfRenderer::class, function () {
+    return new ReceiptPdfRenderer(new ReceiptHtmlBuilder(), new QrCodeGenerator());
+});
+
+ServiceLocator::register(StatementLedgerBuilder::class, fn () => new StatementLedgerBuilder());
+
+ServiceLocator::register(LogoDataUriReader::class, function () {
+    return new LogoDataUriReader(ServiceLocator::get(NotaryService::class));
+});
+
+ServiceLocator::register(StatementPdfService::class, function () {
+    return new StatementPdfService(
+        ServiceLocator::get(PaymentStatementService::class),
+        ServiceLocator::get(PaymentClientRepository::class),
+        ServiceLocator::get(NotaryService::class),
+        ServiceLocator::get(LogoDataUriReader::class),
+        ServiceLocator::get(StatementLedgerBuilder::class),
+        new AmountInWordsConverter()
+    );
+});
+
+ServiceLocator::register(StatementPdfRenderer::class, function () {
+    return new StatementPdfRenderer(
+        new StatementHtmlBuilder(),
+        new DompdfDocumentRenderer(__DIR__ . '/Module/PaymentStatement/Renderer/templates')
+    );
+});
+
+ServiceLocator::register(UserRepository::class, function () {
+    return new UserRepository(Connection::getInstance());
+});
+
+ServiceLocator::register(UserService::class, function () {
+    return new UserService(
+        ServiceLocator::get(UserRepository::class)
+    );
+});
+
+ServiceLocator::register(NotaryRepository::class, function () {
+    return new NotaryRepository(Connection::getInstance());
+});
+
+ServiceLocator::register(NotaryService::class, function () {
+    return new NotaryService(
+        ServiceLocator::get(NotaryRepository::class)
+    );
+});
+
+ServiceLocator::register(MeService::class, function () {
+    return new MeService(
+        ServiceLocator::get(UserRepository::class),
+        ServiceLocator::get(NotaryRepository::class)
+    );
+});
+
+ServiceLocator::register(DeedRepository::class, function () {
+    return new DeedRepository(Connection::getInstance());
+});
+
+ServiceLocator::register(ParticipantRepository::class, function () {
+    return new ParticipantRepository(Connection::getInstance());
+});
+
+ServiceLocator::register(RegistrationRepository::class, function () {
+    return new RegistrationRepository(Connection::getInstance());
+});
+
+ServiceLocator::register(DeedReferenceValidator::class, function () {
+    return new DeedReferenceValidator(
+        ServiceLocator::get(ActRepository::class),
+        ServiceLocator::get(DeedTypeRepository::class),
+        ServiceLocator::get(SubdivisionRepository::class)
+    );
+});
+
+ServiceLocator::register(DeedService::class, function () {
+    return new DeedService(
+        ServiceLocator::get(DeedRepository::class),
+        ServiceLocator::get(ParticipantRepository::class),
+        ServiceLocator::get(RegistrationRepository::class),
+        ServiceLocator::get(DeedReferenceValidator::class),
+        ServiceLocator::get(TransactionManager::class)
+    );
+});
+
+ServiceLocator::register(ParticipantService::class, function () {
+    return new ParticipantService(
+        ServiceLocator::get(DeedRepository::class),
+        ServiceLocator::get(ParticipantRepository::class),
+        ServiceLocator::get(TransactionManager::class)
+    );
+});
+
+ServiceLocator::register(RegistrationService::class, function () {
+    return new RegistrationService(
+        ServiceLocator::get(DeedRepository::class),
+        ServiceLocator::get(RegistrationRepository::class),
+        ServiceLocator::get(DeedReferenceValidator::class),
+        ServiceLocator::get(TransactionManager::class)
+    );
+});

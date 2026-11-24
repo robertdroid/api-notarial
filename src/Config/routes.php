@@ -3,6 +3,25 @@
 declare(strict_types=1);
 
 use App\Core\Http\Router;
+use App\Core\Middleware\AuthMiddleware;
+use App\Module\Auth\Controller\AuthController;
+use App\Module\Act\Controller\ActController;
+use App\Module\Subdivision\Controller\SubdivisionController;
+use App\Module\DeedType\Controller\DeedTypeController;
+use App\Module\PaymentTax\Controller\PaymentTaxController;
+use App\Module\PaymentClient\Controller\PaymentClientController;
+use App\Module\PaymentStatement\Controller\PaymentStatementController;
+use App\Module\PaymentProcedure\Controller\PaymentProcedureController;
+use App\Module\PaymentProcedureTax\Controller\PaymentProcedureTaxController;
+use App\Module\PaymentTransaction\Controller\PaymentTransactionController;
+use App\Module\Payment\Controller\PaymentController;
+use App\Module\Receipt\Controller\ReceiptController;
+use App\Module\User\Controller\UserController;
+use App\Module\Notary\Controller\NotaryController;
+use App\Module\Me\Controller\MeController;
+use App\Module\Deed\Controller\DeedController;
+use App\Module\Deed\Controller\ParticipantController;
+use App\Module\Deed\Controller\RegistrationController;
 
 /**
  * API Routes Configuration
@@ -11,6 +30,9 @@ use App\Core\Http\Router;
  */
 
 /** @var Router $router */
+
+// Register middlewares
+$router->addMiddleware('auth', new AuthMiddleware());
 
 // Health check
 $router->get('/api/v3/health', function () {
@@ -21,19 +43,109 @@ $router->get('/api/v3/health', function () {
     ];
 });
 
-// Auth routes (no middleware)
-// $router->post('/api/v3/auth/login', [AuthController::class, 'login']);
-// $router->post('/api/v3/auth/refresh', [AuthController::class, 'refresh']);
+// Auth routes (public - no middleware)
+$router->post('/api/v3/auth/login', [AuthController::class, 'login']);
+$router->post('/api/v3/auth/refresh', [AuthController::class, 'refresh']);
+
+// Acts routes (protected)
+$router->get('/api/v3/acts', [ActController::class, 'index'])->withMiddleware('auth');
+$router->get('/api/v3/acts/{id}', [ActController::class, 'show'])->withMiddleware('auth');
+$router->post('/api/v3/acts', [ActController::class, 'store'])->withMiddleware('auth');
+$router->put('/api/v3/acts/{id}', [ActController::class, 'update'])->withMiddleware('auth');
+
+// Subdivisions routes (protected)
+$router->get('/api/v3/subdivisions', [SubdivisionController::class, 'index'])->withMiddleware('auth');
+$router->get('/api/v3/subdivisions/{id}', [SubdivisionController::class, 'show'])->withMiddleware('auth');
+$router->post('/api/v3/subdivisions', [SubdivisionController::class, 'store'])->withMiddleware('auth');
+$router->put('/api/v3/subdivisions/{id}', [SubdivisionController::class, 'update'])->withMiddleware('auth');
+
+// Deed Types routes (protected)
+$router->get('/api/v3/deed-types', [DeedTypeController::class, 'index'])->withMiddleware('auth');
+$router->get('/api/v3/deed-types/{id}', [DeedTypeController::class, 'show'])->withMiddleware('auth');
+$router->post('/api/v3/deed-types', [DeedTypeController::class, 'store'])->withMiddleware('auth');
+$router->put('/api/v3/deed-types/{id}', [DeedTypeController::class, 'update'])->withMiddleware('auth');
+
+// Payment Taxes routes (protected)
+$router->get('/api/v3/payment-taxes', [PaymentTaxController::class, 'index'])->withMiddleware('auth');
+$router->get('/api/v3/payment-taxes/{id}', [PaymentTaxController::class, 'show'])->withMiddleware('auth');
+$router->post('/api/v3/payment-taxes', [PaymentTaxController::class, 'store'])->withMiddleware('auth');
+$router->put('/api/v3/payment-taxes/{id}', [PaymentTaxController::class, 'update'])->withMiddleware('auth');
+
+// Payment Procedures routes (protected)
+$router->get('/api/v3/payment-procedures', [PaymentProcedureController::class, 'index'])->withMiddleware('auth');
+// Must be registered before /payment-procedures/{id}, otherwise "taxes" is taken as an id
+$router->get('/api/v3/payment-procedures/taxes', [PaymentProcedureTaxController::class, 'listAll'])->withMiddleware('auth');
+$router->get('/api/v3/payment-procedures/{id}', [PaymentProcedureController::class, 'show'])->withMiddleware('auth');
+$router->post('/api/v3/payment-procedures', [PaymentProcedureController::class, 'store'])->withMiddleware('auth');
+$router->put('/api/v3/payment-procedures/{id}', [PaymentProcedureController::class, 'update'])->withMiddleware('auth');
+$router->get('/api/v3/payment-procedures/{id}/taxes', [PaymentProcedureTaxController::class, 'index'])->withMiddleware('auth');
+$router->post('/api/v3/payment-procedures/{id}/taxes', [PaymentProcedureTaxController::class, 'store'])->withMiddleware('auth');
+$router->put('/api/v3/payment-procedures/{id}/taxes/{taxId}', [PaymentProcedureTaxController::class, 'update'])->withMiddleware('auth');
+$router->delete('/api/v3/payment-procedures/{id}/taxes/{taxId}', [PaymentProcedureTaxController::class, 'destroy'])->withMiddleware('auth');
+
+// Payment Clients routes (protected)
+$router->get('/api/v3/payment-clients', [PaymentClientController::class, 'index'])->withMiddleware('auth');
+$router->get('/api/v3/payment-clients/{id}', [PaymentClientController::class, 'show'])->withMiddleware('auth');
+$router->get('/api/v3/payment-clients/{id}/statement', [PaymentStatementController::class, 'show'])->withMiddleware('auth');
+// Same resource, one more segment: no collision with /payment-clients/{id}/statement
+$router->get('/api/v3/payment-clients/{id}/statement/pdf', [PaymentStatementController::class, 'pdf'])->withMiddleware('auth');
+$router->post('/api/v3/payment-clients', [PaymentClientController::class, 'store'])->withMiddleware('auth');
+$router->put('/api/v3/payment-clients/{id}', [PaymentClientController::class, 'update'])->withMiddleware('auth');
+
+// Payment Transactions routes (protected)
+$router->get('/api/v3/payment-transactions', [PaymentTransactionController::class, 'showByUuid'])->withMiddleware('auth');
+$router->get('/api/v3/payment-transactions/{id}', [PaymentTransactionController::class, 'show'])->withMiddleware('auth');
+$router->post('/api/v3/payment-transactions', [PaymentTransactionController::class, 'store'])->withMiddleware('auth');
+$router->put('/api/v3/payment-transactions/{id}', [PaymentTransactionController::class, 'update'])->withMiddleware('auth');
+
+// Payments routes (protected)
+$router->get('/api/v3/payments', [PaymentController::class, 'showByUuid'])->withMiddleware('auth');
+$router->get('/api/v3/payments/{id}', [PaymentController::class, 'show'])->withMiddleware('auth');
+$router->post('/api/v3/payments', [PaymentController::class, 'store'])->withMiddleware('auth');
+$router->put('/api/v3/payments/{id}', [PaymentController::class, 'update'])->withMiddleware('auth');
+$router->delete('/api/v3/payments/{id}', [PaymentController::class, 'destroy'])->withMiddleware('auth');
+
+// Receipts in PDF (protected). The uuid routes have an extra segment, so they never collide with /{id}/receipt
+$router->get('/api/v3/payment-transactions/{id}/receipt', [ReceiptController::class, 'transaction'])->withMiddleware('auth');
+$router->get('/api/v3/payment-transactions/uuid/{uuid}/receipt', [ReceiptController::class, 'transactionByUuid'])->withMiddleware('auth');
+$router->get('/api/v3/payments/{id}/receipt', [ReceiptController::class, 'payment'])->withMiddleware('auth');
+$router->get('/api/v3/payments/uuid/{uuid}/receipt', [ReceiptController::class, 'paymentByUuid'])->withMiddleware('auth');
+
+// Users routes (protected)
+$router->get('/api/v3/users', [UserController::class, 'index'])->withMiddleware('auth');
+$router->get('/api/v3/users/{id}', [UserController::class, 'show'])->withMiddleware('auth');
+$router->post('/api/v3/users', [UserController::class, 'store'])->withMiddleware('auth');
+$router->put('/api/v3/users/{id}', [UserController::class, 'update'])->withMiddleware('auth');
+$router->put('/api/v3/users/{id}/password', [UserController::class, 'changePassword'])->withMiddleware('auth');
+
+// Me (protected): user + notary of the token
+$router->get('/api/v3/me', [MeController::class, 'show'])->withMiddleware('auth');
+$router->put('/api/v3/me/password', [UserController::class, 'changeOwnPassword'])->withMiddleware('auth');
+
+// Notary profile routes (protected)
+$router->get('/api/v3/notary', [NotaryController::class, 'show'])->withMiddleware('auth');
+$router->post('/api/v3/notary', [NotaryController::class, 'update'])->withMiddleware('auth');
+$router->get('/api/v3/notary/logo', [NotaryController::class, 'logo'])->withMiddleware('auth');
+
+// Deeds routes (protected)
+$router->get('/api/v3/deeds', [DeedController::class, 'index'])->withMiddleware('auth');
+$router->get('/api/v3/deeds/{id}', [DeedController::class, 'show'])->withMiddleware('auth');
+$router->post('/api/v3/deeds', [DeedController::class, 'store'])->withMiddleware('auth');
+$router->put('/api/v3/deeds/{id}', [DeedController::class, 'update'])->withMiddleware('auth');
+$router->post('/api/v3/deeds/{id}/finish', [DeedController::class, 'finish'])->withMiddleware('auth');
+
+$router->get('/api/v3/deeds/{id}/participants', [ParticipantController::class, 'index'])->withMiddleware('auth');
+$router->post('/api/v3/deeds/{id}/participants', [ParticipantController::class, 'store'])->withMiddleware('auth');
+$router->put('/api/v3/deeds/{id}/participants/{participantId}', [ParticipantController::class, 'update'])->withMiddleware('auth');
+$router->delete('/api/v3/deeds/{id}/participants/{participantId}', [ParticipantController::class, 'destroy'])->withMiddleware('auth');
+
+$router->get('/api/v3/deeds/{id}/registrations', [RegistrationController::class, 'index'])->withMiddleware('auth');
+$router->post('/api/v3/deeds/{id}/registrations', [RegistrationController::class, 'store'])->withMiddleware('auth');
+$router->put('/api/v3/deeds/{id}/registrations/{registrationId}', [RegistrationController::class, 'update'])->withMiddleware('auth');
+$router->delete('/api/v3/deeds/{id}/registrations/{registrationId}', [RegistrationController::class, 'destroy'])->withMiddleware('auth');
 
 // Protected routes (with auth middleware)
 // $router->group(['middleware' => 'auth', 'prefix' => '/api/v3'], function (Router $router) {
-//
-//     // Deeds
-//     $router->get('/deeds', [DeedController::class, 'index']);
-//     $router->get('/deeds/{id}', [DeedController::class, 'show']);
-//     $router->post('/deeds', [DeedController::class, 'store']);
-//     $router->put('/deeds/{id}', [DeedController::class, 'update']);
-//     $router->delete('/deeds/{id}', [DeedController::class, 'destroy']);
 //
 //     // Acts
 //     $router->get('/acts', [ActController::class, 'index']);
@@ -52,11 +164,5 @@ $router->get('/api/v3/health', function () {
 //     $router->get('/subdivisions/{id}', [SubdivisionController::class, 'show']);
 //     $router->post('/subdivisions', [SubdivisionController::class, 'store']);
 //     $router->put('/subdivisions/{id}', [SubdivisionController::class, 'update']);
-//
-//     // Users
-//     $router->get('/users', [UserController::class, 'index']);
-//     $router->get('/users/{id}', [UserController::class, 'show']);
-//     $router->post('/users', [UserController::class, 'store']);
-//     $router->put('/users/{id}', [UserController::class, 'update']);
 //
 // });
