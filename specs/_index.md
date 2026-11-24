@@ -5,6 +5,7 @@
 
 | # | Feature | PO | Arch | QA | PR |
 |---|---------|----|----- |----|-----|
+| 22 | pdf_header_labels | ✓ | ✓ | | |
 | 21 | payment_client_statement_pdf | ✓ | ✓ | ✓ | #21 |
 | 20 | payment_delete | ✓ | ✓ | ✓ | #20 |
 | 19 | payment_client_statement | ✓ | ✓ | ✓ | #19 |
