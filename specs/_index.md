@@ -32,6 +32,12 @@
 | 02 | acts_crud | ✓ | ✓ | ✓ | |
 | 01 | auth_login | ✓ | ✓ | ✓ | |
 
+## Releases
+
+| Version | Date | Commit | Notes |
+|---------|------|--------|-------|
+| [v1.0.0](https://github.com/robertdroid/api-notarial/releases/tag/v1.0.0) | 2026-11-24 | `23729b5` | First production release (`api-not.devrob.net`), features 01–21, 13 migrations applied |
+
 ## How to Use
 
 - **PO**: Read `specs/XX_name/po/` for business context
