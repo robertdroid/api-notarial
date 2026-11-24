@@ -34,10 +34,12 @@ final class StatementHtmlBuilderTest extends TestCase
         ?string $logo = null,
         bool $hasMovements = true,
         string $notaryName = 'Notaría 42',
+        string $titularName = 'Lic. Juan Pérez',
+        string $rfc = 'XAXX010101000',
     ): StatementPdfData {
         return new StatementPdfData(
             clientId: 5,
-            notary: new ReceiptNotary($notaryName, 'Lic. Juan Pérez', 'XAXX010101000', 'Av. Central 100', 'Querétaro', '4421234567', $logo),
+            notary: new ReceiptNotary($notaryName, $titularName, $rfc, 'Av. Central 100', 'Querétaro', '4421234567', $logo),
             client: new ReceiptClient($clientName, '', 'maria@example.com'),
             fromDate: $from,
             toDate: null,
@@ -223,6 +225,96 @@ final class StatementHtmlBuilderTest extends TestCase
         $this->assertStringContainsString('Fecha de emisión: 31/03/2026', $html);
         $this->assertStringContainsString('Notaría 42', $html);
         $this->assertStringContainsString('Av. Central 100, Querétaro', $html);
+    }
+
+    public function testHeaderHasNoLabels(): void
+    {
+        $html = $this->builder->build($this->data([$this->charge()]));
+
+        $this->assertStringNotContainsString('Notario titular:', $html);
+        $this->assertStringNotContainsString('RFC:', $html);
+    }
+
+    public function testHeaderShowsNotaryNameNotaryAndRfcWithoutLabels(): void
+    {
+        $html = $this->builder->build($this->data([$this->charge()]));
+
+        $this->assertStringContainsString('<div class="notary-name">Notaría 42</div>', $html);
+        $this->assertStringContainsString('<div>Lic. Juan Pérez</div>', $html);
+        $this->assertStringContainsString('<div class="muted">XAXX010101000</div>', $html);
+    }
+
+    public function testEmptyRfcRendersTripleDash(): void
+    {
+        $html = $this->builder->build($this->data([$this->charge()], rfc: ''));
+
+        $this->assertStringContainsString('<div class="muted">---</div>', $html);
+    }
+
+    public function testBlankRfcRendersTripleDash(): void
+    {
+        $html = $this->builder->build($this->data([$this->charge()], rfc: '   '));
+
+        $this->assertStringContainsString('<div class="muted">---</div>', $html);
+    }
+
+    public function testEmptyNotaryNameKeepsTheEmDash(): void
+    {
+        $html = $this->builder->build($this->data([$this->charge()], titularName: ''));
+
+        $this->assertStringContainsString('<div>—</div>', $html);
+    }
+
+    public function testHeaderLinesAreInOrder(): void
+    {
+        $html = $this->builder->build($this->data([$this->charge()]));
+
+        $positions = array_map(
+            static fn (string $needle): int|false => strpos($html, $needle),
+            [
+                '<div class="notary-name">Notaría 42</div>',
+                '<div>Lic. Juan Pérez</div>',
+                '<div class="muted">XAXX010101000</div>',
+                '<div class="muted">Av. Central 100, Querétaro</div>',
+                '<div class="muted">Tel. 4421234567</div>',
+            ],
+        );
+
+        $this->assertNotContains(false, $positions);
+        $sorted = $positions;
+        sort($sorted);
+        $this->assertSame($sorted, $positions, 'name < notary < RFC < address < phone');
+    }
+
+    public function testEmptyRfcDoesNotChangeTheDashElsewhere(): void
+    {
+        $html = $this->builder->build($this->data([$this->charge()], rfc: ''));
+
+        $this->assertStringContainsString('<td class="k">Teléfono</td><td>—</td>', $html);
+    }
+
+    public function testRfcAndNotaryNameAreEscaped(): void
+    {
+        $html = $this->builder->build($this->data(
+            [$this->charge()],
+            titularName: '<script>alert(1)</script>',
+            rfc: '<script>alert(2)</script>',
+        ));
+
+        $this->assertStringNotContainsString('<script>', $html);
+        $this->assertStringContainsString('<div>&lt;script&gt;alert(1)&lt;/script&gt;</div>', $html);
+        $this->assertStringContainsString('<div class="muted">&lt;script&gt;alert(2)&lt;/script&gt;</div>', $html);
+    }
+
+    public function testStatementWithoutMovementsHasTheSameHeader(): void
+    {
+        $html = $this->builder->build($this->data([], balance: 0.0, words: null, hasMovements: false, rfc: ''));
+
+        $this->assertStringContainsString('Sin movimientos en el periodo', $html);
+        $this->assertStringContainsString('<div>Lic. Juan Pérez</div>', $html);
+        $this->assertStringContainsString('<div class="muted">---</div>', $html);
+        $this->assertStringNotContainsString('Notario titular:', $html);
+        $this->assertStringNotContainsString('RFC:', $html);
     }
 
     public function testTableHeaderRepeatsAndRowsDoNotSplit(): void

@@ -73,8 +73,8 @@ $addressLine = trim($notary->address . ($notary->city !== '' && $notary->address
 <?php endif; ?>
         <td>
             <div class="notary-name"><?= H::orDash($notary->name) ?></div>
-            <div>Notario titular: <?= H::orDash($notary->notaryName) ?></div>
-            <div class="muted">RFC: <?= H::orDash($notary->rfc) ?></div>
+            <div><?= H::orDash($notary->notaryName) ?></div>
+            <div class="muted"><?= H::orDash($notary->rfc, '---') ?></div>
             <div class="muted"><?= H::orDash($addressLine) ?></div>
             <div class="muted">Tel. <?= H::orDash($notary->phone) ?></div>
         </td>
