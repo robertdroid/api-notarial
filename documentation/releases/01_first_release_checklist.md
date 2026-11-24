@@ -43,7 +43,7 @@ Estos cambios **no están hechos** en el repo; sin ellos el frontend no funciona
 - [ ] `docs/openapi.yaml`: servidor de producción → `https://api-not.devrob.net/api/v3`
 - [ ] Incluir `.github/workflows/deploy.yml`, `documentation/releases/` y el arreglo de `MoneyFormatterTest` (PHP 8.5)
 - [ ] PR revisado y mergeado a `develop` (flujo habitual: dev crea, QA cierra)
-- [ ] Protección de `main`: requerir PR, sin push directo ni force-push
+- [x] Protección de `main`: requerir PR, sin push directo ni force-push (aplicada con `gh api`, también a admins; sin status checks porque no hay CI en PR)
 
 ## Fase 4 — Release de la API
 
