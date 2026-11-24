@@ -92,7 +92,7 @@ SQL completo y resolución de datos en [03](03_database_migrations.md).
 
 ## Fase 7 — Migrar
 
-- [ ] Aplicar las 13 migraciones **en orden**, una por una (03 §5)
+- [x] Aplicar las 13 migraciones **en orden**, una por una (03 §5)
 - [ ] Verificar el resultado (03 §6)
 - [ ] Activar el smoke test estricto:
   ```bash
@@ -111,10 +111,10 @@ SQL completo y resolución de datos en [03](03_database_migrations.md).
 
 ## Fase 9 — Cierre
 
-- [ ] Mover las migraciones aplicadas: `.db/applied/*` → `.db/executed/v1.0.0/` (según `.db/README.md`), por PR
-- [ ] Crear el tag y release: `gh release create v1.0.0 -R robertdroid/api-notarial --target main`
+- [x] Mover las migraciones aplicadas: `.db/applied/*` → `.db/executed/v1.0.0/` (según `.db/README.md`), por PR
+- [x] Crear el tag y release: `gh release create v1.0.0 -R robertdroid/api-notarial --target main` (creado el 2026-11-24 apuntando a `23729b5`, el commit desplegado)
 - [ ] Guardar el backup hasta confirmar estabilidad
-- [ ] Anotar en `specs/_index.md` la fecha del release
+- [x] Anotar en `specs/_index.md` la fecha del release
 
 ---
 
