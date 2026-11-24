@@ -38,6 +38,7 @@
 | Version | Date | Commit | Notes |
 |---------|------|--------|-------|
 | [v1.0.0](https://github.com/robertdroid/api-notarial/releases/tag/v1.0.0) | 2026-11-24 | `23729b5` | First production release (`api-not.devrob.net`), features 01–21, 13 migrations applied |
+| [v3.0.2611-1](https://github.com/robertdroid/api-notarial/releases/tag/v3.0.2611-1) | 2026-11-24 | `a06861b` | Feature 22: PDF notary header without labels, empty RFC shown as `---`. No migrations (PR #28) |
 
 ## How to Use
 
