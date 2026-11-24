@@ -112,9 +112,9 @@ SQL completo y resolución de datos en [03](03_database_migrations.md).
 ## Fase 9 — Cierre
 
 - [x] Mover las migraciones aplicadas: `.db/applied/*` → `.db/executed/v1.0.0/` (según `.db/README.md`), por PR
-- [ ] Crear el tag y release: `gh release create v1.0.0 -R robertdroid/api-notarial --target main`
+- [x] Crear el tag y release: `gh release create v1.0.0 -R robertdroid/api-notarial --target main` (creado el 2026-11-24 apuntando a `23729b5`, el commit desplegado)
 - [ ] Guardar el backup hasta confirmar estabilidad
-- [ ] Anotar en `specs/_index.md` la fecha del release
+- [x] Anotar en `specs/_index.md` la fecha del release
 
 ---
 
