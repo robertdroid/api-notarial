@@ -26,9 +26,13 @@ final class ReceiptHtmlBuilderTest extends TestCase
 
     // ---- helpers ---------------------------------------------------------
 
-    private function notary(?string $logo = null, string $name = 'Notaría 42'): ReceiptNotary
-    {
-        return new ReceiptNotary($name, 'Lic. Juan Pérez', 'XAXX010101000', 'Av. Central 100', 'Querétaro', '4421234567', $logo);
+    private function notary(
+        ?string $logo = null,
+        string $name = 'Notaría 42',
+        string $notaryName = 'Lic. Juan Pérez',
+        string $rfc = 'XAXX010101000',
+    ): ReceiptNotary {
+        return new ReceiptNotary($name, $notaryName, $rfc, 'Av. Central 100', 'Querétaro', '4421234567', $logo);
     }
 
     /** @param ReceiptTaxLine[] $taxLines */
@@ -128,6 +132,96 @@ final class ReceiptHtmlBuilderTest extends TestCase
 
         $this->assertStringContainsString('<td class="k">Nombre</td><td>—</td>', $html);
         $this->assertStringContainsString('<td class="k">Referencia</td><td>—</td>', $html);
+    }
+
+    // ---- notary header ---------------------------------------------------
+
+    public function testHeaderHasNoLabels(): void
+    {
+        $html = $this->builder->build($this->transaction(), self::QR);
+
+        $this->assertStringNotContainsString('Notario titular:', $html);
+        $this->assertStringNotContainsString('RFC:', $html);
+    }
+
+    public function testHeaderShowsNotaryNameNotaryAndRfcWithoutLabels(): void
+    {
+        $html = $this->builder->build($this->transaction(), self::QR);
+
+        $this->assertStringContainsString('<div class="notary-name">Notaría 42</div>', $html);
+        $this->assertStringContainsString('<div>Lic. Juan Pérez</div>', $html);
+        $this->assertStringContainsString('<div class="muted">XAXX010101000</div>', $html);
+    }
+
+    public function testEmptyRfcRendersTripleDash(): void
+    {
+        $html = $this->builder->build($this->transaction(notary: $this->notary(rfc: '')), self::QR);
+
+        $this->assertStringContainsString('<div class="muted">---</div>', $html);
+    }
+
+    public function testBlankRfcRendersTripleDash(): void
+    {
+        $html = $this->builder->build($this->transaction(notary: $this->notary(rfc: '   ')), self::QR);
+
+        $this->assertStringContainsString('<div class="muted">---</div>', $html);
+    }
+
+    public function testEmptyNotaryNameKeepsTheEmDash(): void
+    {
+        $html = $this->builder->build($this->transaction(notary: $this->notary(notaryName: '')), self::QR);
+
+        $this->assertStringContainsString('<div>—</div>', $html);
+    }
+
+    public function testHeaderLinesAreInOrder(): void
+    {
+        $html = $this->builder->build($this->transaction(), self::QR);
+
+        $positions = array_map(
+            static fn (string $needle): int|false => strpos($html, $needle),
+            [
+                '<div class="notary-name">Notaría 42</div>',
+                '<div>Lic. Juan Pérez</div>',
+                '<div class="muted">XAXX010101000</div>',
+                '<div class="muted">Av. Central 100, Querétaro</div>',
+                '<div class="muted">Tel. 4421234567</div>',
+            ],
+        );
+
+        $this->assertNotContains(false, $positions);
+        $sorted = $positions;
+        sort($sorted);
+        $this->assertSame($sorted, $positions, 'name < notary < RFC < address < phone');
+    }
+
+    public function testEmptyRfcDoesNotChangeTheDashElsewhere(): void
+    {
+        $html = $this->builder->build($this->transaction(notary: $this->notary(rfc: ''), clientName: '', reference: ''), self::QR);
+
+        $this->assertStringContainsString('<td class="k">Nombre</td><td>—</td>', $html);
+        $this->assertStringContainsString('<td class="k">Referencia</td><td>—</td>', $html);
+    }
+
+    public function testCancelledReceiptHasTheSameHeader(): void
+    {
+        $html = $this->builder->build($this->transaction(cancelled: true, notary: $this->notary(rfc: '')), self::QR);
+
+        $this->assertStringContainsString('<div class="watermark">CANCELADO</div>', $html);
+        $this->assertStringContainsString('<div>Lic. Juan Pérez</div>', $html);
+        $this->assertStringContainsString('<div class="muted">---</div>', $html);
+        $this->assertStringNotContainsString('Notario titular:', $html);
+        $this->assertStringNotContainsString('RFC:', $html);
+    }
+
+    public function testOrDashUsesTheEmDashByDefaultAndAcceptsAPlaceholder(): void
+    {
+        $this->assertSame('—', ReceiptHtmlBuilder::orDash(null));
+        $this->assertSame('—', ReceiptHtmlBuilder::orDash(''));
+        $this->assertSame('—', ReceiptHtmlBuilder::orDash('  '));
+        $this->assertSame('---', ReceiptHtmlBuilder::orDash(null, '---'));
+        $this->assertSame('---', ReceiptHtmlBuilder::orDash('  ', '---'));
+        $this->assertSame('A &amp; B', ReceiptHtmlBuilder::orDash('A & B', '---'));
     }
 
     // ---- tax table -------------------------------------------------------

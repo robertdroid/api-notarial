@@ -50,9 +50,13 @@ final class ReceiptHtmlBuilder
         return htmlspecialchars($value ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     }
 
-    /** Escaped value, or a dash when it is empty. */
-    public static function orDash(?string $value): string
+    /**
+     * Escaped value, or the placeholder (an em dash by default) when it is empty.
+     *
+     * The placeholder is NOT escaped: pass only literals from the code, never user input.
+     */
+    public static function orDash(?string $value, string $placeholder = '—'): string
     {
-        return $value === null || trim($value) === '' ? '—' : self::escape($value);
+        return $value === null || trim($value) === '' ? $placeholder : self::escape($value);
     }
 }
