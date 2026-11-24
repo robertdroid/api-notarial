@@ -19,7 +19,8 @@ final class MoneyFormatterTest extends TestCase
 
     public function testMoneyDoesNotDependOnLocale(): void
     {
-        $previous = setlocale(LC_NUMERIC, 0);
+        // '0' (string) queries the current locale; the int 0 is a TypeError since PHP 8.5
+        $previous = setlocale(LC_NUMERIC, '0');
         setlocale(LC_NUMERIC, 'es_MX.UTF-8', 'es_ES.UTF-8', 'de_DE.UTF-8');
 
         try {
